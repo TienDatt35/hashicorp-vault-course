@@ -1,0 +1,18 @@
+{
+  "name": "Vault Lab 1.1 — Your first dev server",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {}
+  },
+  "workspaceFolder": "/workspaces/hashicorp-vault-course/labs/01-fundamentals/01-dev-server-first-steps",
+  "onCreateCommand": "bash /workspaces/hashicorp-vault-course/.devcontainer/install-vault.sh",
+  "postCreateCommand": "make setup",
+  "forwardPorts": [8200],
+  "portsAttributes": {
+    "8200": { "label": "Vault API", "onAutoForward": "silent" }
+  },
+  "remoteEnv": {
+    "VAULT_ADDR": "http://127.0.0.1:8200",
+    "VAULT_TOKEN": "root"
+  }
+}
