@@ -18,3 +18,5 @@ yarn-error.log*
 labs/**/.vault-data/
 labs/**/vault.pid
 labs/**/vault.log
+
+.claude/

@@ -4,6 +4,8 @@
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {}
   },
+  "//": "Replace LAB_PATH below with the lab folder, e.g. labs/01-fundamentals/02-xxx",
+  "workspaceFolder": "/workspaces/hashicorp-vault-course/LAB_PATH",
   "onCreateCommand": "bash .devcontainer/install-vault.sh",
   "postCreateCommand": "make setup",
   "customizations": {

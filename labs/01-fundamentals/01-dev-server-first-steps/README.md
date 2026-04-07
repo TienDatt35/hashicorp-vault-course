@@ -5,6 +5,8 @@ estMinutes: 15
 
 # Bài 1.1 — Vault dev server đầu tiên của bạn
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=TienDatt35/hashicorp-vault-course&devcontainer_path=labs%2F01-fundamentals%2F01-dev-server-first-steps%2F.devcontainer%2Fdevcontainer.json)
+
 ## Mục tiêu
 
 Khởi động một Vault dev server, kiểm tra trạng thái, ghi và đọc secret đầu tiên bằng KV v2 secrets engine.
