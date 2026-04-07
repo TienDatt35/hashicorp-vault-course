@@ -4,6 +4,7 @@
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {}
   },
+  "workspaceFolder": "/workspaces/hashicorp-vault-course/labs/01-fundamentals/01-dev-server-first-steps",
   "onCreateCommand": "bash .devcontainer/install-vault.sh",
   "postCreateCommand": "make setup",
   "forwardPorts": [8200],
