@@ -1,0 +1,80 @@
+.quiz {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.progress {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 0.5rem;
+}
+
+.prompt {
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.choices {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem 0;
+}
+
+.choices li {
+  margin-bottom: 0.5rem;
+}
+
+.choice {
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.choice:hover:not(:disabled) {
+  border-color: var(--ifm-color-primary);
+}
+
+.chosen { border-color: var(--ifm-color-primary); }
+.correct { background: rgba(46, 160, 67, 0.15); border-color: #2ea043; }
+.wrong   { background: rgba(248, 81, 73, 0.15); border-color: #f85149; }
+
+.fill { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.fill input {
+  flex: 1;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+  color: inherit;
+  font: inherit;
+}
+
+.button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  background: var(--ifm-color-primary);
+  color: #000;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.feedbackOk, .feedbackBad {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+.feedbackOk { background: rgba(46, 160, 67, 0.12); }
+.feedbackBad { background: rgba(248, 81, 73, 0.12); }

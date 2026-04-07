@@ -1,0 +1,36 @@
+---
+sidebar_position: 99
+title: Kiểm tra chương 1
+---
+
+import { Quiz } from '@site/src/components/widgets';
+
+# Kiểm tra chương 1
+
+Hãy tự kiểm tra hiểu biết về kiến thức nền tảng của Vault. Tiến độ của bạn sẽ được lưu trong trình duyệt.
+
+<Quiz
+  lessonId="01-vault-fundamentals"
+  questions={[
+    {
+      type: 'mcq',
+      prompt: 'Thành phần nào của Vault quyết định một token có được phép đọc một đường dẫn secret cụ thể hay không?',
+      choices: ['Auth method', 'Policy', 'Secrets engine', 'Storage backend'],
+      answer: 'Policy',
+      explanation: 'Auth method cấp token; policy gắn vào token đó định nghĩa các đường dẫn và quyền (capabilities) được phép.',
+    },
+    {
+      type: 'mcq',
+      prompt: 'Vault server vừa khởi động sẽ ở trạng thái nào trước khi unseal?',
+      choices: ['Active', 'Standby', 'Sealed', 'Chỉ mới initialized'],
+      answer: 'Sealed',
+      explanation: 'Khi mới khởi động, Vault chưa thể giải mã storage backend cho tới khi được unseal (thủ công bằng key shares hoặc tự động qua KMS).',
+    },
+    {
+      type: 'fill',
+      prompt: 'Header HTTP nào dùng để truyền Vault token trong các request API?',
+      answer: 'X-Vault-Token',
+      explanation: 'Client truyền token qua header X-Vault-Token trong request.',
+    },
+  ]}
+/>

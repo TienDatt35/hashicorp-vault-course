@@ -1,0 +1,60 @@
+---
+sidebar_position: 1
+title: Vault là gì?
+---
+
+import { ArchitectureDiagram, Flowchart, LabCallout } from '@site/src/components/widgets';
+
+# Vault là gì?
+
+HashiCorp Vault là một công cụ giúp **lưu trữ, truy cập và phân phối secret một cách an toàn** — mật khẩu, API key, chứng chỉ, khóa mã hóa — đồng thời cung cấp **mã hóa như một dịch vụ (encryption-as-a-service)** để ứng dụng không bao giờ phải tự xử lý khóa.
+
+## Luồng hoạt động cốt lõi
+
+Mọi tương tác với Vault đều theo cùng một mô hình: client xác thực qua một *auth method*, nhận về một token, và các *policy* gắn vào token đó quyết định client được truy cập đường dẫn nào trên *secrets engine* nào.
+
+<ArchitectureDiagram variant="auth-policy-secret" />
+
+Bấm vào từng ô để đọc giải thích, hoặc bấm **Phát** để xem toàn bộ luồng diễn ra theo thứ tự.
+
+## Chọn auth method phù hợp
+
+Mỗi loại client cần một cách xác thực khác nhau. Hãy dùng cây quyết định dưới đây để chọn:
+
+<Flowchart
+  title="Tôi nên dùng auth method nào?"
+  tree={{
+    question: 'Loại client nào đang xác thực?',
+    options: [
+      {
+        label: 'Người dùng thao tác trực tiếp trên terminal',
+        next: {
+          question: 'Bạn đã có sẵn nhà cung cấp SSO/OIDC chưa?',
+          options: [
+            { label: 'Có', next: { result: 'Dùng OIDC', detail: 'Cho phép người dùng đăng nhập bằng nhà cung cấp danh tính sẵn có (Okta, Google, v.v.).' } },
+            { label: 'Chưa',  next: { result: 'Dùng userpass (môi trường dev) hoặc LDAP (môi trường prod)', detail: 'userpass rất phù hợp để học và demo. LDAP tích hợp với thư mục doanh nghiệp.' } },
+          ],
+        },
+      },
+      {
+        label: 'Một ứng dụng hoặc dịch vụ',
+        next: {
+          question: 'Nó đang chạy ở đâu?',
+          options: [
+            { label: 'AWS / GCP / Azure', next: { result: 'Dùng auth method của cloud tương ứng', detail: 'AWS IAM, GCP, hoặc Azure auth dùng chính nền tảng cloud làm điểm tin cậy — không cần credential tĩnh.' } },
+            { label: 'Kubernetes',         next: { result: 'Dùng Kubernetes auth', detail: 'Pod xác thực bằng JWT của service account.' } },
+            { label: 'Nơi khác',           next: { result: 'Dùng AppRole', detail: 'AppRole cấp cho ứng dụng cặp Role ID + Secret ID, ánh xạ tới một policy.' } },
+          ],
+        },
+      },
+    ],
+  }}
+/>
+
+## Bắt tay vào thực hành
+
+<LabCallout
+  labId="01-fundamentals/01-dev-server-first-steps"
+  title="Bài 1.1 — Vault dev server đầu tiên của bạn"
+  estMinutes={15}
+/>

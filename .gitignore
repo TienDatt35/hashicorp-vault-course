@@ -1,0 +1,20 @@
+# Node / Docusaurus
+node_modules/
+site/build/
+site/.docusaurus/
+site/.cache-loader/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Lab runtime state
+labs/**/.vault-data/
+labs/**/vault.pid
+labs/**/vault.log

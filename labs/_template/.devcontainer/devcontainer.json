@@ -1,0 +1,25 @@
+{
+  "name": "Vault Lab — TEMPLATE",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {}
+  },
+  "onCreateCommand": "bash .devcontainer/install-vault.sh",
+  "postCreateCommand": "make setup",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "hashicorp.terraform",
+        "hashicorp.hcl"
+      ]
+    }
+  },
+  "forwardPorts": [8200],
+  "portsAttributes": {
+    "8200": { "label": "Vault API", "onAutoForward": "silent" }
+  },
+  "remoteEnv": {
+    "VAULT_ADDR": "http://127.0.0.1:8200",
+    "VAULT_TOKEN": "root"
+  }
+}

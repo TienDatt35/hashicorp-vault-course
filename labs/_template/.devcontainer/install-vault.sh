@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Installs the HashiCorp Vault CLI + jq inside the devcontainer.
+# Used by every lab via .devcontainer/devcontainer.json -> onCreateCommand.
+set -euo pipefail
+
+sudo apt-get update
+sudo apt-get install -y gpg curl jq lsb-release
+
+curl -fsSL https://apt.releases.hashicorp.com/gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+sudo apt-get update
+sudo apt-get install -y vault
+
+vault version
