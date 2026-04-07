@@ -5,7 +5,7 @@ estMinutes: 15
 
 # Bài 1.1 — Vault dev server đầu tiên của bạn
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=TienDatt35/hashicorp-vault-course&devcontainer_path=labs%2F01-fundamentals%2F01-dev-server-first-steps%2F.devcontainer%2Fdevcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?repo=TienDatt35/hashicorp-vault-course&ref=master)
 
 ## Mục tiêu
 
