@@ -1,5 +1,5 @@
 {
-  "name": "Vault Lab 1.1 — Your first dev server",
+  "name": "TienDatt35 HashiCorp Vault Course",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {}

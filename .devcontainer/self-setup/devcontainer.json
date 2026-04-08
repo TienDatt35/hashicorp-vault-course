@@ -1,0 +1,18 @@
+{
+  "name": "Self-Setup Environment",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "hashicorp.hcl"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "remoteUser": "vaulttrainee",
+  "postCreateCommand": "sudo apt-get update -y"
+}

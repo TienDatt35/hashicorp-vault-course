@@ -6,7 +6,7 @@ set -euo pipefail
 # capability on /usr/bin/vault, which causes "Operation not permitted" when
 # executing the binary inside an unprivileged Codespaces container.
 
-VAULT_VERSION="${VAULT_VERSION:-1.17.6}"
+VAULT_VERSION="${VAULT_VERSION:-1.21.4}"
 ARCH="$(dpkg --print-architecture)"   # amd64 or arm64
 TMPDIR="$(mktemp -d)"
 
