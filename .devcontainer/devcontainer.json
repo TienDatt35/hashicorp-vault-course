@@ -13,7 +13,7 @@
       }
     }
   },
-  "postStartCommand": "vault server -dev -dev-root-token-id=root -dev-listen-address=127.0.0.1:8200 &",
+  "postStartCommand": "vault server -dev -dev-root-token-id=root -dev-listen-address=127.0.0.1:8200",
   "forwardPorts": [8200],
   "portsAttributes": {
     "8200": { "label": "Vault API", "onAutoForward": "silent" }
