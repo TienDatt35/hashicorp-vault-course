@@ -1,22 +1,20 @@
-FROM ubuntu:22.04
+# Dockerfile
+FROM hashicorp/vault:latest
 
-# Avoid prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
+# Install git
+RUN apk add --no-cache git jq logrotate openssl
 
-# Install necessary packages
-RUN apt-get update && apt-get install --yes \
-    curl \
-    gpg \
-    lsb-release \
-    jq \
-    vim \
-    sudo \
-    wget \
-    unzip \
-    git \
-    software-properties-common \
- && rm -rf /var/lib/apt/lists/*
+# Download and install latest Terraform
+RUN apk add --no-cache curl unzip && \
+    LATEST_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/') && \
+    curl -LO https://releases.hashicorp.com/terraform/${LATEST_VERSION}/terraform_${LATEST_VERSION}_linux_amd64.zip && \
+    unzip terraform_${LATEST_VERSION}_linux_amd64.zip -d /usr/local/bin && \
+    rm terraform_${LATEST_VERSION}_linux_amd64.zip && \
+    apk del curl unzip
+    
+# Set environment variables for dev mode
+ENV VAULT_DEV_ROOT_TOKEN_ID=root
+ENV VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
 
-# Create non-root user
-RUN useradd -m -s /bin/bash vaulttrainee && \
-    echo "vaulttrainee ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+# Expose the default Vault port
+EXPOSE 8200
