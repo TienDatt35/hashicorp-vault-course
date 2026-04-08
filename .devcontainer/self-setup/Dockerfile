@@ -1,9 +1,6 @@
 FROM ubuntu:22.04
 
-# Avoid prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install necessary packages
+# Cài đặt các gói cần thiết
 RUN apt-get update && apt-get install --yes \
     curl \
     gpg \
@@ -17,6 +14,6 @@ RUN apt-get update && apt-get install --yes \
     software-properties-common \
  && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
+# Tạo non-root user
 RUN useradd -m -s /bin/bash vaulttrainee && \
     echo "vaulttrainee ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers

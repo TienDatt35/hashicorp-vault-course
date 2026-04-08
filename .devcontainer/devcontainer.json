@@ -15,15 +15,10 @@
     "VAULT_ADDR": "http://127.0.0.1:8200",
     "VAULT_TOKEN": "root"
   },
-  // After the container starts, run Vault in dev mode
+  // Chạy vault server trong dev mode
   "postStartCommand": "nohup vault server -dev -dev-root-token-id=root >/tmp/vault.log 2>&1 & sleep 3",
 
-  // Skip setcap configuration in the container for Codespaces
-  "containerEnv": {
-    "SKIP_SETCAP": "true"
-  },
-
-  // Port forwarding for Vault
+  // Forward port 8200 để truy cập Vault từ máy local
   "forwardPorts": [8200],
   "portsAttributes": {
     "8200": { "label": "Vault API", "onAutoForward": "silent" }
