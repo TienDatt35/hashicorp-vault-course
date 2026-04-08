@@ -16,7 +16,7 @@
     "VAULT_TOKEN": "root"
   },
   // After the container starts, run Vault in dev mode
-  "postStartCommand": "setsid sh -c 'vault server -dev -dev-root-token-id=root </dev/null >/tmp/vault.log 2>&1' &",
+  "postStartCommand": "nohup vault server -dev -dev-root-token-id=root >/tmp/vault.log 2>&1 & sleep 3",
 
   // Skip setcap configuration in the container for Codespaces
   "containerEnv": {
