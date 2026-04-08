@@ -1,11 +1,19 @@
 {
-  "name": "TienDatt35 HashiCorp Vault Course",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {}
+  "name": "Default Environment",
+  "build": {
+    "dockerfile": "Dockerfile"
   },
-  "onCreateCommand": "bash /workspaces/hashicorp-vault-course/.devcontainer/install-vault.sh",
-  "postCreateCommand": "make setup",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "hashicorp.hcl"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+  "onCreateCommand": "vault server -dev -dev-root-token-id=root -dev-listen-address=127.0.0.1:8200",
   "forwardPorts": [8200],
   "portsAttributes": {
     "8200": { "label": "Vault API", "onAutoForward": "silent" }
