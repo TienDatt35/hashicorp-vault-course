@@ -1,12 +1,22 @@
-# Dockerfile
-FROM hashicorp/vault:latest
+FROM ubuntu:22.04
 
-# Install git
-RUN apk add --no-cache git jq logrotate openssl
+# Avoid prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Set environment variables for dev mode
-ENV VAULT_DEV_ROOT_TOKEN_ID=root
-ENV VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+# Install necessary packages
+RUN apt-get update && apt-get install --yes \
+    curl \
+    gpg \
+    lsb-release \
+    jq \
+    vim \
+    sudo \
+    wget \
+    unzip \
+    git \
+    software-properties-common \
+ && rm -rf /var/lib/apt/lists/*
 
-# Expose the default Vault port
-EXPOSE 8200
+# Create non-root user
+RUN useradd -m -s /bin/bash vaulttrainee && \
+    echo "vaulttrainee ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers

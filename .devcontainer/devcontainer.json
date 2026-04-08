@@ -5,21 +5,27 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "hashicorp.hcl"
-      ],
+      "extensions": ["hashicorp.hcl"],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash"
       }
     }
   },
-  "postStartCommand": "nohup vault server -dev -dev-root-token-id=root -dev-listen-address=127.0.0.1:8200 > /tmp/vault.log 2>&1 &",
-  "forwardPorts": [8200],
-  "portsAttributes": {
-    "8200": { "label": "Vault API", "onAutoForward": "silent" }
-  },
   "remoteEnv": {
     "VAULT_ADDR": "http://127.0.0.1:8200",
     "VAULT_TOKEN": "root"
+  },
+  // After the container starts, run Vault in dev mode
+  "postStartCommand": "vault server -dev -dev-root-token-id=root &",
+
+  // Skip setcap configuration in the container for Codespaces
+  "containerEnv": {
+    "SKIP_SETCAP": "true"
+  },
+
+  // Port forwarding for Vault
+  "forwardPorts": [8200],
+  "portsAttributes": {
+    "8200": { "label": "Vault API", "onAutoForward": "silent" }
   }
 }
