@@ -12,13 +12,21 @@ import styles from './Quiz.module.css';
  *   explanation?: string,
  * }>
  *
- * Score and completion are persisted in localStorage under `vault-course:quiz:<lessonId>`
- * so learners see their progress across visits. No backend required.
+ * Behavior:
+ *   - MCQ: học viên có thể chọn lại các đáp án khác khi chọn sai, cho tới khi
+ *     chọn đúng thì câu hỏi mới được khoá. Điểm chỉ được cộng nếu trả lời
+ *     đúng ngay lần thử đầu tiên.
+ *   - Fill: chỉ chấm 1 lần khi nhấn "Kiểm tra".
+ *
+ * Score và completion được lưu vào localStorage tại key
+ * `vault-course:quiz:<lessonId>` để học viên thấy lại tiến độ giữa các lần truy cập.
  */
 export default function Quiz({ lessonId, questions = [] }) {
   const storageKey = `vault-course:quiz:${lessonId}`;
   const [index, setIndex] = useState(0);
-  const [picked, setPicked] = useState(null);
+  const [picked, setPicked] = useState(null);          // mcq: lựa chọn hiện tại; fill: 'submitted' khi đã chấm
+  const [wrongPicks, setWrongPicks] = useState([]);    // mcq: danh sách các lựa chọn sai đã thử
+  const [solved, setSolved] = useState(false);         // câu hiện tại đã trả lời đúng / đã nộp (fill)
   const [fillValue, setFillValue] = useState('');
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
@@ -41,17 +49,26 @@ export default function Quiz({ lessonId, questions = [] }) {
 
   const q = questions[index];
   const isLast = index === questions.length - 1;
-  const submitted = picked !== null || (q.type === 'fill' && fillValue !== '' && picked === 'submitted');
 
-  function check() {
-    let correct = false;
-    if (q.type === 'mcq') {
-      correct = picked === q.answer;
+  function pickMcq(choice) {
+    if (solved) return;                  // câu đã đúng, không cho click nữa
+    if (wrongPicks.includes(choice)) return; // đã thử sai rồi, không cho lặp lại
+    if (choice === q.answer) {
+      setPicked(choice);
+      setSolved(true);
+      // Chỉ cộng điểm nếu đây là lần thử đầu tiên (chưa có wrong pick nào).
+      if (wrongPicks.length === 0) setScore((s) => s + 1);
     } else {
-      correct = fillValue.trim().toLowerCase() === String(q.answer).trim().toLowerCase();
-      setPicked('submitted');
+      setWrongPicks((prev) => [...prev, choice]);
+      setPicked(choice);
     }
+  }
+
+  function checkFill() {
+    const correct = fillValue.trim().toLowerCase() === String(q.answer).trim().toLowerCase();
     if (correct) setScore((s) => s + 1);
+    setPicked('submitted');
+    setSolved(true);
   }
 
   function next() {
@@ -60,19 +77,23 @@ export default function Quiz({ lessonId, questions = [] }) {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(
           storageKey,
-          JSON.stringify({ completed: true, score: score, total: questions.length, ts: Date.now() }),
+          JSON.stringify({ completed: true, score, total: questions.length, ts: Date.now() }),
         );
       }
       return;
     }
     setIndex((i) => i + 1);
     setPicked(null);
+    setWrongPicks([]);
+    setSolved(false);
     setFillValue('');
   }
 
   function reset() {
     setIndex(0);
     setPicked(null);
+    setWrongPicks([]);
+    setSolved(false);
     setFillValue('');
     setScore(0);
     setDone(false);
@@ -82,15 +103,22 @@ export default function Quiz({ lessonId, questions = [] }) {
     return (
       <div className={styles.quiz}>
         <h4>Hoàn thành bài kiểm tra</h4>
-        <p>Bạn đạt <strong>{score} / {questions.length}</strong> điểm.</p>
+        <p>Bạn đạt <strong>{score} / {questions.length}</strong> điểm (chỉ tính các câu đúng ngay lần đầu).</p>
         <button className={styles.button} onClick={reset}>Làm lại</button>
       </div>
     );
   }
 
-  const isCorrect = q.type === 'mcq'
-    ? picked === q.answer
-    : (picked === 'submitted' && fillValue.trim().toLowerCase() === String(q.answer).trim().toLowerCase());
+  // Trạng thái hiển thị feedback cho câu hiện tại.
+  const showFeedback =
+    (q.type === 'mcq' && (solved || wrongPicks.length > 0)) ||
+    (q.type === 'fill' && picked === 'submitted');
+
+  const isCorrect = solved && (
+    q.type === 'mcq'
+      ? picked === q.answer
+      : fillValue.trim().toLowerCase() === String(q.answer).trim().toLowerCase()
+  );
 
   return (
     <div className={styles.quiz}>
@@ -100,21 +128,21 @@ export default function Quiz({ lessonId, questions = [] }) {
       {q.type === 'mcq' && (
         <ul className={styles.choices}>
           {q.choices.map((choice) => {
-            const chosen = picked === choice;
-            const showResult = picked !== null;
             const isAnswer = choice === q.answer;
+            const isWrongAttempt = wrongPicks.includes(choice);
+            // Sau khi đã giải đúng, làm nổi bật câu trả lời đúng.
+            // Khi chưa giải xong, chỉ làm nổi bật các câu đã thử và sai.
             const cls = [
               styles.choice,
-              chosen ? styles.chosen : '',
-              showResult && isAnswer ? styles.correct : '',
-              showResult && chosen && !isAnswer ? styles.wrong : '',
+              solved && isAnswer ? styles.correct : '',
+              isWrongAttempt ? styles.wrong : '',
             ].join(' ');
             return (
               <li key={choice}>
                 <button
                   className={cls}
-                  onClick={() => picked === null && setPicked(choice)}
-                  disabled={picked !== null}
+                  onClick={() => pickMcq(choice)}
+                  disabled={solved || isWrongAttempt}
                 >
                   {choice}
                 </button>
@@ -134,16 +162,24 @@ export default function Quiz({ lessonId, questions = [] }) {
             placeholder="Nhập câu trả lời của bạn…"
           />
           {picked !== 'submitted' && (
-            <button className={styles.button} onClick={check} disabled={!fillValue.trim()}>
+            <button className={styles.button} onClick={checkFill} disabled={!fillValue.trim()}>
               Kiểm tra
             </button>
           )}
         </div>
       )}
 
-      {picked !== null && (
+      {showFeedback && (
         <div className={isCorrect ? styles.feedbackOk : styles.feedbackBad}>
-          <strong>{isCorrect ? 'Chính xác.' : 'Chưa đúng.'}</strong>
+          <strong>
+            {isCorrect
+              ? (q.type === 'mcq' && wrongPicks.length > 0
+                  ? 'Đúng rồi.'
+                  : 'Chính xác.')
+              : (q.type === 'mcq'
+                  ? 'Chưa đúng — hãy thử lại với một lựa chọn khác.'
+                  : 'Chưa đúng.')}
+          </strong>
           {q.explanation && <span> {q.explanation}</span>}
           {!isCorrect && q.type === 'fill' && (
             <span> Đáp án đúng: <code>{q.answer}</code></span>
@@ -151,7 +187,7 @@ export default function Quiz({ lessonId, questions = [] }) {
         </div>
       )}
 
-      {picked !== null && (
+      {solved && (
         <button className={styles.button} onClick={next}>
           {isLast ? 'Kết thúc' : 'Câu tiếp theo'}
         </button>
