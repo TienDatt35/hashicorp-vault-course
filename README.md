@@ -11,7 +11,7 @@ Khóa học gồm hai phần:
 
 1. **Đọc lý thuyết** — truy cập [trang khóa học](https://example.github.io/hashicorp-vault-course) (cập nhật lại sau khi bạn xuất bản) và học theo thứ tự các chương.
 2. **Làm bài thực hành** — ở cuối mỗi bài học, bấm **Mở trong Codespaces** để khởi chạy bài thực hành tương ứng. Codespace sẽ khởi động với `vault` đã được cài sẵn và một dev server đang chạy.
-3. **Kiểm tra đáp án** — trong Codespace, chạy `make verify`. Bạn sẽ thấy toàn bộ dòng `[PASS]`. Nếu bí, hãy xem trong thư mục `solution/`.
+3. **Kiểm tra đáp án** — trong Codespace, chạy `bash verify`. Bạn sẽ thấy toàn bộ dòng `[PASS]`. Nếu bí, hãy xem trong thư mục `solution/`.
 4. **Làm bài kiểm tra** — mỗi chương kết thúc bằng một widget kiểm tra, lưu tiến độ ngay trong trình duyệt của bạn.
 
 ## Chương trình học

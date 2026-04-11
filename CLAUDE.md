@@ -37,10 +37,11 @@ Khi tạo bài học mới, **luôn phát triển từ template** thay vì viế
 2. Mở đầu bằng phần "Mục tiêu của bài học" — 2-4 gạch đầu dòng cụ thể.
 3. Giải thích **vì sao** trước **làm như thế nào**.
 4. Ưu tiên ví dụ ngắn (HCL hoặc CLI) thay vì đoạn văn dài.
-5. Khi có liên quan, chèn widget tương tác từ
+5. Ưu tiên tạo, chèn widget tương tác từ
    `@site/src/components/widgets`: `ArchitectureDiagram`, `Flowchart`,
-   `Quiz`, `LabCallout`.
+   `Quiz`, `LabCallout` để trực quan hoá các nội dung trong bài.
 6. Kết bài luôn có:
+   - Đường dẫn tới tài liệu tham khảo
    - Codespace badge: `[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/TienDatt35/hashicorp-vault-course)`
    - `<LabCallout labId="<NN-chapter>/<NN-lesson>" title="..." estMinutes={N} />`
 7. Nội dung phải bám sát mục tiêu chính thức của kỳ thi Vault Associate (003).
@@ -48,10 +49,16 @@ Khi tạo bài học mới, **luôn phát triển từ template** thay vì viế
 ### Quiz (`site/docs/.../quiz.mdx`)
 
 1. Front-matter: `sidebar_position: 2`, `title: Quiz`.
-2. Tối thiểu 5 câu hỏi, ưu tiên hỗn hợp `mcq` và `fill`.
-3. Mỗi câu hỏi phải có `explanation` giải thích vì sao đáp án đúng.
+2. Tối thiểu 10 câu hỏi, ưu tiên hỗn hợp `mcq` và `fill`.
+3. Mỗi câu hỏi phải có `explanation` giải thích vì sao đáp án đúng vì sao sai.
 4. `lessonId` đặt theo dạng `NN-chapter/NN-lesson` để Quiz widget lưu tiến độ
    không bị trùng với bài khác.
+5. **Hành vi MCQ cần biết khi viết câu hỏi**:
+   - MCQ cho phép thử lại tới khi đúng; điểm chỉ tính nếu đúng ngay lần đầu.
+   - `explanation` hiển thị cả khi đúng lẫn khi sai → viết như một giải thích
+     khái niệm, dẫn dắt trước rồi mới kết luận đáp án (đừng mở đầu bằng tên
+     đáp án đúng).
+   - Distractor phải hợp lý, không vô lý hiển nhiên.
 
 ### Bài thực hành (`labs/.../`)
 
@@ -77,7 +84,7 @@ Khi tạo bài học mới, **luôn phát triển từ template** thay vì viế
 ## Quy trình làm việc khi thêm bài học mới
 
 1. Người dùng cung cấp chương + tên bài + nội dung cần dạy và nhấn mạnh.
-2. (Tùy chọn) Dùng subagent `vault-docs-researcher` để lấy thông tin chính
+2. Dùng subagent `vault-docs-researcher` để lấy thông tin chính
    xác từ tài liệu Vault chính thức.
 3. Trao đổi với người dùng để chỉnh sửa nội dung trước khi sang bước tiếp theo.
 4. Dùng subagent `lesson-writer` (hoặc trực tiếp) để:

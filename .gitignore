@@ -20,4 +20,4 @@ labs/**/vault.pid
 labs/**/vault.log
 
 .claude/
-site/
+site/**
