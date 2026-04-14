@@ -44,6 +44,38 @@ const VARIANTS = {
     ],
     edges: [['login', 'token'], ['token', 'use'], ['use', 'renew'], ['renew', 'revoke']],
   },
+  'vault-key-layers': {
+    title: 'Mô Hình 3 Lớp Key của Vault',
+    nodes: [
+      { id: 'unseal',     x:  80, y: 100, label: 'Unseal Keys',      desc: 'Các shares của root key được tạo bởi Shamir Secret Sharing. Phân phát cho operators — cần đủ threshold mới reconstruct được root key.' },
+      { id: 'root',       x: 260, y: 100, label: 'Root Key',         desc: 'Reconstruct từ unseal keys. Dùng để giải mã encryption key. Không bao giờ lưu plaintext — chỉ tồn tại trong memory trong quá trình unseal rồi bị xóa.' },
+      { id: 'enc',        x: 440, y: 100, label: 'Encryption Key',   desc: 'Mã hóa mọi dữ liệu bằng AES-256-GCM. Lưu trong keyring ở storage (đã encrypted bởi root key). Chỉ tồn tại dạng plaintext trong memory khi Vault unsealed.' },
+      { id: 'data',       x: 620, y: 100, label: 'Data',             desc: 'Dữ liệu của bạn — secrets, policies, token metadata. Luôn được encrypt trước khi ghi ra storage. Ngay cả khi storage bị xâm phạm, không có encryption key thì không thể giải mã.' },
+    ],
+    edges: [['unseal', 'root'], ['root', 'enc'], ['enc', 'data']],
+  },
+  'vault-architecture': {
+    title: 'Kiến Trúc Ba Lớp của Vault',
+    nodes: [
+      { id: 'client',   x:  80, y: 100, label: 'Client',            desc: 'Người dùng hoặc ứng dụng gửi request qua CLI, SDK, hoặc curl. Mọi giao tiếp đều qua HTTPS.' },
+      { id: 'api',      x: 260, y: 100, label: 'HTTPS API',         desc: 'Lớp tiếp nhận request. Vault CLI chỉ là HTTP client gọi vào REST API này. Tất cả thao tác đều đi qua đây.' },
+      { id: 'barrier',  x: 440, y: 100, label: 'Security Barrier',  desc: 'Ranh giới bảo vệ bao quanh Vault Core. Encrypt AES-256-GCM khi ghi ra storage, decrypt + verify khi đọc vào. Storage backend là untrusted.' },
+      { id: 'core',     x: 620, y: 100, label: 'Vault Core',        desc: 'Trung tâm xử lý: thực thi ACL policy, điều phối secrets engine, auth method, audit device, và quản lý vòng đời token/lease.' },
+      { id: 'storage',  x: 800, y: 100, label: 'Storage Backend',   desc: 'Lưu trữ bền vững (Raft, Consul, S3, DynamoDB…). Nằm ngoài barrier — chỉ nhận và trả ciphertext. Vault không tin tưởng backend.' },
+    ],
+    edges: [['client', 'api'], ['api', 'barrier'], ['barrier', 'core'], ['core', 'storage']],
+  },
+  'vault-components': {
+    title: '4 Thành Phần Cốt Lõi của Vault',
+    nodes: [
+      { id: 'auth',     x:  80, y: 100, label: 'Auth Methods',     desc: 'Xác thực danh tính client (userpass, AppRole, OIDC…) và cấp token. Mặc định chỉ có token auth được enable.' },
+      { id: 'token',    x: 260, y: 100, label: 'Token',            desc: 'Kết quả của mọi auth method. Token mang theo policies, TTL và permissions để truy cập secrets.' },
+      { id: 'engine',   x: 440, y: 100, label: 'Secrets Engine',   desc: 'Lưu trữ (KV), sinh dynamic credentials (Database, AWS), hoặc mã hóa dữ liệu (Transit). Mỗi engine chạy tại path riêng.' },
+      { id: 'storage',  x: 620, y: 100, label: 'Storage Backend',  desc: 'Nơi Vault lưu toàn bộ dữ liệu đã mã hóa (AES-256). Mỗi cluster chỉ có 1 backend; Raft và Consul hỗ trợ HA.' },
+      { id: 'audit',    x: 440, y: 220, label: 'Audit Devices',    desc: 'Ghi log mọi request/response dạng JSON. Sensitive data bị hash HMAC-SHA256. Nếu không ghi được, Vault từ chối request.' },
+    ],
+    edges: [['auth', 'token'], ['token', 'engine'], ['engine', 'storage'], ['engine', 'audit']],
+  },
 };
 
 export default function ArchitectureDiagram({ variant = 'auth-policy-secret' }) {
