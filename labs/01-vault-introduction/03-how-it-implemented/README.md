@@ -1,6 +1,6 @@
 ---
 title: "Khám phá giới hạn của Vault Community Edition"
-estMinutes: 15
+estMinutes: 10
 ---
 
 # Khám phá giới hạn của Vault Community Edition
@@ -21,12 +21,6 @@ Trong bài thực hành này, bạn sẽ kiểm tra trực tiếp những tính 
 2. Thử tạo một namespace tên `test` bằng lệnh `vault namespace create test`. Quan sát thông báo lỗi trả về. Đây không phải lỗi cấu hình — OSS không hỗ trợ Namespaces.
 
 3. Xem danh sách secrets engines đang được bật bằng lệnh `vault secrets list`. Xác nhận rằng các engine cơ bản như `cubbyhole/`, `identity/`, `secret/`, và `sys/` có mặt.
-
-4. Bật auth method `userpass` và tạo user `testuser` với password `testpass`. Bước này xác nhận OSS có đầy đủ tính năng auth method.
-
-5. Bật KV v2 secrets engine tại path `demo/`. Bước này xác nhận OSS có đầy đủ secrets engines.
-
-6. Ghi secret `key=value` vào `demo/test`, sau đó đọc lại để xác nhận dữ liệu được lưu đúng.
 
 > Gợi ý: hãy tự suy nghĩ trước khi mở `solution.md`. Nếu bí, đối chiếu với phần giải đáp.
 

@@ -1,42 +1,154 @@
 ---
-title: Khám phá Vault Dev Server trong Codespace
-estMinutes: 20
+title: "Cài Vault từ binary, cấu hình, khởi tạo và unseal"
+estMinutes: 30
 ---
 
-# Khám phá Vault Dev Server trong Codespace
+# Cài Vault từ binary, cấu hình, khởi tạo và unseal
 
 ## Mục tiêu
 
-Xác nhận trực tiếp các đặc điểm của Vault Dev Server đang chạy trong Codespace — không cần cài đặt thêm gì, chỉ quan sát và tương tác với server đã sẵn sàng.
+Bạn sẽ tự tay cài Vault từ file binary, viết config file HCL, khởi động server,
+thực hiện `operator init` để nhận unseal keys và root token, unseal server, rồi
+xác nhận Vault hoạt động đúng.
+
+Vault dev server đã chạy sẵn ở port `8200` trong Codespace — bài này bạn sẽ
+cài và chạy một instance **riêng** ở port `8300` để trải nghiệm đúng quy trình
+production.
 
 ## Yêu cầu
 
-- Bạn đang làm việc bên trong Codespace của repo này, nên Vault dev server đã được khởi động sẵn ở `http://127.0.0.1:8200` với root token là `root`.
-- Biến môi trường `VAULT_ADDR=http://127.0.0.1:8200` và `VAULT_TOKEN=root` đã được set sẵn trong terminal.
-- Bạn đã đọc bài lý thuyết tương ứng trong `site/docs/01-vault-introduction/04-install-vault/theory.mdx`.
+- Bạn đang ở trong Codespace của repo này.
+- Có kết nối internet để tải binary.
+- Đã đọc bài lý thuyết tương ứng.
 
 ## Nhiệm vụ của bạn
 
-1. **Kiểm tra trạng thái Vault.** Chạy `vault status` và đọc kỹ output. Xác nhận ba thông tin: `Initialized` là `true`, `Sealed` là `false`, và `Storage Type` là `inmem`. Đây là bằng chứng trực tiếp rằng Dev Server đã tự động init, tự động unseal, và đang dùng in-memory storage.
+### Bước 1 — Chuẩn bị thư mục làm việc
 
-2. **Ghi lại phiên bản Vault.** Chạy `vault version` và ghi lại version đang dùng trong Codespace.
+Tạo thư mục `~/vault-lab/` để chứa binary, config và data:
 
-3. **Xem danh sách secrets engines đã mount.** Chạy `vault secrets list`. Tìm engine tên `secret/` trong danh sách và xác nhận đây là KV version 2 — đây là engine mà Dev Server mount sẵn cho bạn. Lưu ý cột `Type` hiển thị `kv`.
+```bash
+mkdir -p ~/vault-lab/data
+```
 
-4. **Ghi và đọc một secret.** Thực hiện hai thao tác theo thứ tự:
-   - Ghi secret: `vault kv put secret/hello foo=bar`
-   - Đọc lại: `vault kv get secret/hello`
-   
-   Xác nhận rằng giá trị `foo` bạn đọc ra khớp với `bar` bạn đã ghi vào.
+### Bước 2 — Tải và cài đặt Vault binary
 
-5. **Đọc hiểu config file HCL production mẫu.** Mở file `vault-production.hcl` trong thư mục lab này và trả lời ba câu hỏi sau (chỉ để tự kiểm tra — không cần nộp):
-   - Block nào quy định nơi lưu trữ dữ liệu (storage)?
-   - Block nào quy định TLS certificate?
-   - Giá trị của `api_addr` là gì?
+Tải binary Vault 1.21.4 (linux 386) từ HashiCorp, giải nén và đặt vào
+`~/vault-lab/vault`.
 
-6. **Chạy `bash verify.sh`** để xác nhận tất cả các bước trên đều hoàn tất.
+URL tải:
+```
+https://releases.hashicorp.com/vault/1.21.4/vault_1.21.4_linux_386.zip
+```
 
-> Gợi ý: hãy tự thực hành các bước 1-5 trước khi chạy `verify.sh`. Nếu bí ở bước nào, hãy đối chiếu với `solution.md`.
+Sau khi đặt xong, xác nhận binary hoạt động:
+
+```bash
+~/vault-lab/vault version
+# Kết quả kỳ vọng: Vault v1.21.4, ...
+```
+
+### Bước 3 — Tạo config file
+
+Tạo file `~/vault-lab/config.hcl` với nội dung sau. File này đã có sẵn trong
+thư mục lab dưới tên `vault-lab.hcl` để bạn tham khảo.
+
+```hcl
+ui            = true
+api_addr      = "http://127.0.0.1:8300"
+disable_mlock = true
+
+storage "file" {
+  path = "/root/vault-lab/data"
+}
+
+listener "tcp" {
+  address     = "127.0.0.1:8300"
+  tls_disable = 1
+}
+```
+
+> Lưu ý: `tls_disable = 1` chỉ dùng cho mục đích học tập — không dùng trong
+> production. `storage "file"` lưu dữ liệu trực tiếp ra disk (không cần Raft
+> hay Consul).
+
+### Bước 4 — Khởi động Vault server
+
+Khởi động Vault ở background, ghi log ra file:
+
+```bash
+nohup ~/vault-lab/vault server -config=~/vault-lab/config.hcl \
+  > ~/vault-lab/vault.log 2>&1 &
+```
+
+Chờ 2 giây rồi kiểm tra Vault đã lắng nghe ở port 8300:
+
+```bash
+sleep 2
+VAULT_ADDR=http://127.0.0.1:8300 ~/vault-lab/vault status
+# Kết quả kỳ vọng: Initialized = false, Sealed = true
+# (server mới khởi động, chưa được init)
+```
+
+### Bước 5 — Khởi tạo Vault (`operator init`)
+
+Khởi tạo Vault với 3 key shares, cần 2 key để unseal. **Lưu toàn bộ output
+vào file** — bạn sẽ cần unseal keys và root token ở các bước tiếp theo:
+
+```bash
+VAULT_ADDR=http://127.0.0.1:8300 \
+  ~/vault-lab/vault operator init \
+  -key-shares=3 \
+  -key-threshold=2 \
+  | tee ~/vault-lab/init.txt
+```
+
+Output sẽ chứa:
+- 3 `Unseal Key` (mỗi key trên một dòng)
+- 1 `Initial Root Token`
+
+> **Quan trọng**: trong production, các unseal keys phải được phân phát cho
+> những người khác nhau và tuyệt đối không lưu cùng chỗ với Vault. Ở đây
+> lưu vào file chỉ để phục vụ bài học.
+
+### Bước 6 — Unseal Vault
+
+Vault cần ít nhất **2 trong 3 key** để unseal. Chạy lệnh dưới đây **2 lần**,
+mỗi lần nhập một key khác nhau từ file `init.txt`:
+
+```bash
+VAULT_ADDR=http://127.0.0.1:8300 ~/vault-lab/vault operator unseal
+# Nhập Unseal Key 1, Enter
+VAULT_ADDR=http://127.0.0.1:8300 ~/vault-lab/vault operator unseal
+# Nhập Unseal Key 2, Enter
+```
+
+Sau lần thứ hai, trường `Sealed` chuyển thành `false` — Vault đã sẵn sàng.
+
+### Bước 7 — Đăng nhập và kiểm tra
+
+Lấy root token từ `init.txt` rồi đăng nhập:
+
+```bash
+ROOT_TOKEN=$(grep "Initial Root Token" ~/vault-lab/init.txt | awk '{print $NF}')
+VAULT_ADDR=http://127.0.0.1:8300 VAULT_TOKEN=$ROOT_TOKEN \
+  ~/vault-lab/vault status
+```
+
+Xác nhận hai thông tin:
+- `Initialized: true`
+- `Sealed: false`
+
+Sau đó kiểm tra danh sách secrets engines mặc định:
+
+```bash
+VAULT_ADDR=http://127.0.0.1:8300 VAULT_TOKEN=$ROOT_TOKEN \
+  ~/vault-lab/vault secrets list
+```
+
+Kỳ vọng thấy `cubbyhole/`, `identity/`, `secret/` và `sys/`.
+
+> Gợi ý: hãy tự thực hành các bước trên trước khi xem `solution.md`.
 
 ## Tiêu chí thành công
 

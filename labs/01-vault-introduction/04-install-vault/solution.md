@@ -1,103 +1,111 @@
 ---
-title: Đáp án mẫu — Khám phá Vault Dev Server trong Codespace
+title: "Đáp án — Cài Vault từ binary, cấu hình, khởi tạo và unseal"
 ---
 
 # Đáp án mẫu
 
-> Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> Đây là một cách giải chuẩn cho bài thực hành. Miễn là `bash verify.sh` báo
+> `[PASS]` cho mọi kiểm tra là đúng.
 
 ## Giải thích ngắn
 
-Bài này không yêu cầu bạn cài đặt hay cấu hình gì mới — Vault Dev Server đã được devcontainer khởi động sẵn. Mục tiêu là quan sát và xác nhận trực tiếp các đặc điểm của Dev Server mà bạn đã học trong lý thuyết: auto-init, auto-unseal, in-memory storage, KV v2 tại `secret/`, và UI sẵn sàng.
+Bài này đi qua đúng quy trình production của một Vault instance mới:
+tải binary → viết config → khởi động server → `operator init` (tạo unseal keys
+và root token) → `operator unseal` (cần đủ threshold) → login và kiểm tra.
+
+Điểm quan trọng cần nắm:
+
+- `operator init` chỉ chạy **một lần duy nhất** trên một Vault cluster. Sau
+  đó Vault sẽ từ chối mọi lần init tiếp theo.
+- `operator unseal` phải chạy **nhiều lần** (đúng bằng threshold). Mỗi lần
+  cung cấp một key khác nhau — đây là cơ chế Shamir Secret Sharing.
+- Root token chỉ dùng trong lần đầu setup. Trong production, nên tạo token
+  có phạm vi hẹp hơn và revoke root token sau khi cấu hình xong.
 
 ## Các lệnh
 
 ```bash
-# Bước 1 — Kiểm tra trạng thái Vault
-# Kết quả mong đợi: Initialized = true, Sealed = false, Storage Type = inmem
-vault status
+# Bước 1 — tạo thư mục làm việc
+mkdir -p ~/vault-lab/data
 
-# Để xem dạng JSON (dễ đọc hơn cho script):
-vault status -format=json
-```
+# Bước 2 — tải binary, giải nén và đặt vào ~/vault-lab/
+cd ~/vault-lab
 
-Output của `vault status` sẽ trông như sau:
+curl -O https://releases.hashicorp.com/vault/1.21.4/vault_1.21.4_linux_386.zip
 
-```
-Key             Value
----             -----
-Seal Type       shamir
-Initialized     true
-Sealed          false
-Total Shares    1
-Threshold       1
-Version         1.x.x
-Storage Type    inmem
-Cluster Name    vault-cluster-...
-Cluster ID      ...
-HA Enabled      false
-```
+# Giải nén (cần unzip; nếu chưa có: sudo apt-get install -y unzip)
+unzip vault_1.21.4_linux_386.zip
 
-Lưu ý: Dev Server chỉ có 1 key share và threshold là 1 (thay vì 5/3 của production) vì nó không cần bảo mật thực sự.
+# Xác nhận binary hoạt động
+~/vault-lab/vault version
+# Kết quả: Vault v1.21.4, built ...
 
-```bash
-# Bước 2 — Kiểm tra phiên bản Vault
-vault version
-```
+# Bước 3 — tạo config file
+cat > ~/vault-lab/config.hcl <<'EOF'
+ui            = true
+api_addr      = "http://127.0.0.1:8300"
+disable_mlock = true
 
-```bash
-# Bước 3 — Xem danh sách secrets engines
-# Tìm dòng secret/ với Type = kv và Options = [version:2]
-vault secrets list
+storage "file" {
+  path = "/root/vault-lab/data"
+}
 
-# Để xem chi tiết hơn ở dạng JSON:
-vault secrets list -format=json
-```
+listener "tcp" {
+  address     = "127.0.0.1:8300"
+  tls_disable = 1
+}
+EOF
 
-```bash
-# Bước 4 — Ghi secret và đọc lại
-# Ghi secret với key=value
-vault kv put secret/hello foo=bar
+# Bước 4 — khởi động Vault server ở background
+nohup ~/vault-lab/vault server -config=~/vault-lab/config.hcl \
+  > ~/vault-lab/vault.log 2>&1 &
 
-# Đọc lại để xác nhận
-vault kv get secret/hello
-```
+sleep 2
 
-Output của `vault kv get secret/hello` sẽ hiển thị:
+# Xác nhận server đang lắng nghe (Initialized=false, Sealed=true là đúng)
+VAULT_ADDR=http://127.0.0.1:8300 ~/vault-lab/vault status
 
-```
-====== Secret Path ======
-secret/data/hello
+# Bước 5 — khởi tạo Vault, lưu toàn bộ output
+VAULT_ADDR=http://127.0.0.1:8300 \
+  ~/vault-lab/vault operator init \
+  -key-shares=3 \
+  -key-threshold=2 \
+  | tee ~/vault-lab/init.txt
 
-======= Metadata =======
-Key              Value
----              -----
-created_time     ...
-version          1
+# Output mẫu:
+# Unseal Key 1: abc123...
+# Unseal Key 2: def456...
+# Unseal Key 3: ghi789...
+#
+# Initial Root Token: hvs.XXXXXXXXXXXX
+#
+# Vault initialized with 3 key shares and a key threshold of 2.
 
-====== Data ======
-Key    Value
----    -----
-foo    bar
-```
+# Bước 6 — unseal: cần đúng 2 key (bất kỳ 2 trong 3)
+# Chạy lệnh đầu tiên, paste Unseal Key 1 khi được hỏi
+VAULT_ADDR=http://127.0.0.1:8300 ~/vault-lab/vault operator unseal
 
-```bash
-# Bước 5 — Đọc config file HCL production mẫu
-# Mở file để xem:
-cat vault-production.hcl
-```
+# Chạy lệnh thứ hai, paste Unseal Key 2 khi được hỏi
+VAULT_ADDR=http://127.0.0.1:8300 ~/vault-lab/vault operator unseal
 
-**Trả lời 3 câu hỏi về vault-production.hcl:**
+# Sau lần thứ hai: Sealed = false
 
-1. Block quy định nơi lưu trữ dữ liệu là `storage "raft"` — chỉ định `path = "/opt/vault/data"` là thư mục lưu dữ liệu trên disk.
+# Nếu muốn tự động hoá (không nhập tay):
+# UNSEAL_KEY_1=$(grep "Unseal Key 1" ~/vault-lab/init.txt | awk '{print $NF}')
+# UNSEAL_KEY_2=$(grep "Unseal Key 2" ~/vault-lab/init.txt | awk '{print $NF}')
+# VAULT_ADDR=http://127.0.0.1:8300 ~/vault-lab/vault operator unseal "$UNSEAL_KEY_1"
+# VAULT_ADDR=http://127.0.0.1:8300 ~/vault-lab/vault operator unseal "$UNSEAL_KEY_2"
 
-2. Block quy định TLS certificate là `listener "tcp"` — chứa `tls_cert_file` và `tls_key_file` trỏ tới certificate và private key.
+# Bước 7 — đăng nhập và kiểm tra
+ROOT_TOKEN=$(grep "Initial Root Token" ~/vault-lab/init.txt | awk '{print $NF}')
 
-3. Giá trị của `api_addr` là `"https://vault.example.com:8200"` — đây là địa chỉ public mà Vault quảng bá cho client kết nối tới.
+VAULT_ADDR=http://127.0.0.1:8300 VAULT_TOKEN=$ROOT_TOKEN \
+  ~/vault-lab/vault status
+# Kết quả: Initialized=true, Sealed=false, Storage Type=file
 
-```bash
-# Bước 6 — Chạy kiểm tra
-bash verify.sh
+VAULT_ADDR=http://127.0.0.1:8300 VAULT_TOKEN=$ROOT_TOKEN \
+  ~/vault-lab/vault secrets list
+# Kết quả: cubbyhole/, identity/, secret/, sys/
 ```
 
 ## Kiểm tra lại
@@ -106,4 +114,4 @@ bash verify.sh
 bash verify.sh
 ```
 
-Bạn phải thấy toàn bộ dòng `[PASS]` và dòng cuối `Tất cả kiểm tra đều đạt.`
+Bạn phải thấy toàn bộ dòng `[PASS]`.

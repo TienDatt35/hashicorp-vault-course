@@ -1,77 +1,125 @@
 #!/usr/bin/env bash
-# verify.sh — kiểm tra kết quả bài thực hành "Khám phá Vault Dev Server trong Codespace"
+# verify.sh — kiểm tra bài thực hành "Cài Vault từ binary, cấu hình, khởi tạo và unseal"
 #
 # Quy ước:
 #   pass "mô tả ngắn"   -> in dòng [PASS]
 #   fail "mô tả ngắn"   -> in dòng [FAIL] và tăng số lỗi
 #
+# Script kiểm tra instance Vault riêng ở port 8300 (không phải dev server 8200).
 # Chạy bằng: bash verify.sh
-# Exit code chỉ là 0 khi mọi kiểm tra đều đạt.
 
 set -uo pipefail
 
-: "${VAULT_ADDR:=http://127.0.0.1:8200}"
-: "${VAULT_TOKEN:=root}"
-export VAULT_ADDR VAULT_TOKEN
+LAB_DIR="$HOME/vault-lab"
+LAB_VAULT="$LAB_DIR/vault"
+LAB_CONFIG="$LAB_DIR/config.hcl"
+LAB_INIT="$LAB_DIR/init.txt"
+LAB_ADDR="http://127.0.0.1:8300"
 
 failures=0
 pass() { printf '  \033[32m[PASS]\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31m[FAIL]\033[0m %s\n' "$1"; failures=$((failures + 1)); }
 
-echo "Đang kiểm tra bài thực hành — Khám phá Vault Dev Server trong Codespace"
+echo "Đang kiểm tra bài thực hành — Cài Vault từ binary, cấu hình, khởi tạo và unseal"
 echo
 
-# --- Kiểm tra 1: Vault đang chạy và truy cập được --------------------------
-if vault status >/dev/null 2>&1; then
-  pass "Vault có thể truy cập tại $VAULT_ADDR"
+# --- Kiểm tra 1: binary vault tồn tại và đúng version ----------------------
+if [ -f "$LAB_VAULT" ] && [ -x "$LAB_VAULT" ]; then
+  pass "Binary vault tồn tại tại $LAB_VAULT"
 else
-  fail "Không truy cập được Vault tại $VAULT_ADDR"
+  fail "Không tìm thấy binary tại $LAB_VAULT — hãy tải và giải nén vault_1.21.4_linux_386.zip"
+fi
+
+if "$LAB_VAULT" version 2>/dev/null | grep -q "1.21.4"; then
+  pass "Vault binary đúng version 1.21.4"
+else
+  ACTUAL=$("$LAB_VAULT" version 2>/dev/null || echo "không đọc được")
+  fail "Version không khớp (hiện tại: $ACTUAL) — cần 1.21.4"
+fi
+
+# --- Kiểm tra 2: config file tồn tại và có các trường bắt buộc -------------
+if [ -f "$LAB_CONFIG" ]; then
+  pass "Config file tồn tại tại $LAB_CONFIG"
+else
+  fail "Không tìm thấy config file tại $LAB_CONFIG — hãy tạo file config.hcl"
+fi
+
+if [ -f "$LAB_CONFIG" ] && grep -q 'storage "file"' "$LAB_CONFIG"; then
+  pass "Config có storage \"file\" block"
+else
+  fail "Config thiếu block storage \"file\""
+fi
+
+if [ -f "$LAB_CONFIG" ] && grep -q '8300' "$LAB_CONFIG"; then
+  pass "Config listener dùng port 8300"
+else
+  fail "Config không dùng port 8300 — kiểm tra listener block"
+fi
+
+# --- Kiểm tra 3: Vault ở port 8300 có thể truy cập ------------------------
+if VAULT_ADDR="$LAB_ADDR" "$LAB_VAULT" status >/dev/null 2>&1 || \
+   curl -sf "$LAB_ADDR/v1/sys/health" >/dev/null 2>&1; then
+  pass "Vault tại $LAB_ADDR có thể truy cập"
+else
+  fail "Không truy cập được Vault tại $LAB_ADDR — đảm bảo server đã khởi động"
   echo
-  echo "Vault dev server chưa chạy. Trong Codespace, chạy:"
-  echo "  nohup vault server -dev -dev-root-token-id=root >/tmp/vault.log 2>&1 &"
+  echo "Khởi động lại server:"
+  echo "  nohup $LAB_VAULT server -config=$LAB_CONFIG > $LAB_DIR/vault.log 2>&1 &"
   exit 1
 fi
 
-# --- Kiểm tra 2: Vault đã được initialized ----------------------------------
-if vault status -format=json 2>/dev/null | jq -e '.initialized == true' >/dev/null 2>&1; then
-  pass "Vault đã initialized (initialized = true)"
+# --- Kiểm tra 4: Vault đã initialized ---------------------------------------
+INIT_STATUS=$(curl -sf "$LAB_ADDR/v1/sys/health" 2>/dev/null | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('initialized','false'))" 2>/dev/null || echo "false")
+
+if [ "$INIT_STATUS" = "True" ] || \
+   VAULT_ADDR="$LAB_ADDR" "$LAB_VAULT" status -format=json 2>/dev/null | \
+   grep -q '"initialized": *true'; then
+  pass "Vault đã initialized (operator init đã chạy)"
 else
-  fail "Vault chưa initialized — Dev Server có thể chưa khởi động đầy đủ"
+  fail "Vault chưa initialized — hãy chạy: VAULT_ADDR=$LAB_ADDR $LAB_VAULT operator init -key-shares=3 -key-threshold=2"
 fi
 
-# --- Kiểm tra 3: Vault đã unsealed ------------------------------------------
-if vault status -format=json 2>/dev/null | jq -e '.sealed == false' >/dev/null 2>&1; then
+# --- Kiểm tra 5: Vault đã unsealed ------------------------------------------
+SEALED_STATUS=$(VAULT_ADDR="$LAB_ADDR" "$LAB_VAULT" status -format=json 2>/dev/null | \
+  grep '"sealed"' | grep -o 'true\|false' || echo "true")
+
+if [ "$SEALED_STATUS" = "false" ]; then
   pass "Vault đã unsealed (sealed = false)"
 else
-  fail "Vault đang sealed — Dev Server không tự unseal được, hãy kiểm tra lại tiến trình"
+  fail "Vault đang sealed — hãy chạy operator unseal đủ 2 lần với 2 key khác nhau"
 fi
 
-# --- Kiểm tra 4: Storage type là inmem (đặc trưng của Dev Server) -----------
-storage_type=$(vault status -format=json 2>/dev/null | jq -r '.storage_type' 2>/dev/null || echo "")
-if echo "$storage_type" | grep -q 'inmem'; then
-  pass "Storage type là inmem — đúng với Dev Server"
+# --- Kiểm tra 6: file init.txt tồn tại và có root token --------------------
+if [ -f "$LAB_INIT" ]; then
+  pass "File init.txt tồn tại tại $LAB_INIT"
 else
-  fail "Storage type không phải inmem (hiện tại: ${storage_type:-không xác định được}) — đây không phải Dev Server"
+  fail "Không tìm thấy $LAB_INIT — hãy lưu output của operator init vào file này"
 fi
 
-# --- Kiểm tra 5: KV v2 đã mount tại secret/ ---------------------------------
-if vault secrets list -format=json 2>/dev/null | jq -e '.["secret/"].options.version == "2"' >/dev/null 2>&1; then
-  pass "KV v2 đã mount tại secret/ (options.version = \"2\")"
+ROOT_TOKEN=""
+if [ -f "$LAB_INIT" ]; then
+  ROOT_TOKEN=$(grep "Initial Root Token" "$LAB_INIT" | awk '{print $NF}' 2>/dev/null || echo "")
+fi
+
+if [ -n "$ROOT_TOKEN" ]; then
+  pass "Tìm thấy root token trong init.txt"
 else
-  fail "KV v2 chưa mount tại secret/ — hãy kiểm tra output của 'vault secrets list'"
+  fail "Không tìm thấy root token trong init.txt — kiểm tra lại nội dung file"
 fi
 
-# --- Kiểm tra 6: Secret secret/hello tồn tại với foo=bar (idempotent) -------
-# Nếu secret chưa tồn tại, tự động tạo để kiểm tra idempotent
-if ! vault kv get secret/hello >/dev/null 2>&1; then
-  # Secret chưa có — tạo mới để assertion bên dưới có thể kiểm tra
-  vault kv put secret/hello foo=bar >/dev/null 2>&1 || true
-fi
+# --- Kiểm tra 7: đăng nhập được và list secrets engines --------------------
+if [ -n "$ROOT_TOKEN" ]; then
+  ENGINES=$(VAULT_ADDR="$LAB_ADDR" VAULT_TOKEN="$ROOT_TOKEN" \
+    "$LAB_VAULT" secrets list -format=json 2>/dev/null || echo "")
 
-if vault kv get -format=json secret/hello 2>/dev/null | jq -e '.data.data.foo == "bar"' >/dev/null 2>&1; then
-  pass "Secret secret/hello tồn tại với foo=bar"
+  if echo "$ENGINES" | grep -q '"cubbyhole/"'; then
+    pass "Đăng nhập bằng root token thành công, secrets engines mặc định có mặt"
+  else
+    fail "Đăng nhập thất bại hoặc không liệt kê được secrets engines — kiểm tra root token"
+  fi
 else
-  fail "Secret secret/hello không tồn tại hoặc giá trị foo không phải 'bar'"
+  fail "Bỏ qua kiểm tra secrets engines vì không có root token"
 fi
 
 echo

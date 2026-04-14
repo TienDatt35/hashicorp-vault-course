@@ -50,35 +50,6 @@ else
   pass "vault namespace create test thất bại đúng như kỳ vọng (OSS không có Namespaces)"
 fi
 
-# --- Kiểm tra 3: userpass auth method đã được bật ---------------------------
-# Dùng vault auth list với format JSON và jq để kiểm tra chính xác.
-if vault auth list -format=json 2>/dev/null | jq -e '.["userpass/"].type == "userpass"' >/dev/null 2>&1; then
-  pass "userpass auth method đã được bật tại path userpass/"
-else
-  fail "userpass auth method chưa được bật — hãy chạy: vault auth enable userpass"
-fi
-
-# --- Kiểm tra 4: KV v2 engine tại demo/ đã được bật ------------------------
-# Kiểm tra options.version == "2" để xác nhận đây là KV v2 (không phải KV v1).
-if vault secrets list -format=json 2>/dev/null | jq -e '.["demo/"].options.version == "2"' >/dev/null 2>&1; then
-  pass "KV v2 secrets engine đã được bật tại path demo/"
-else
-  fail "KV v2 secrets engine chưa được bật tại demo/ — hãy chạy: vault secrets enable -path=demo -version=2 kv"
-fi
-
-# --- Kiểm tra 5: Secret demo/test có thể ghi và đọc ------------------------
-# Ghi secret (idempotent — ghi đè nếu đã tồn tại), sau đó đọc và kiểm tra giá trị.
-if vault kv put demo/test key=value >/dev/null 2>&1; then
-  # Kiểm tra đọc lại được giá trị đúng
-  if vault kv get -format=json demo/test 2>/dev/null | jq -e '.data.data.key == "value"' >/dev/null 2>&1; then
-    pass "Secret demo/test có thể ghi và đọc — giá trị key=value xác nhận đúng"
-  else
-    fail "Ghi demo/test thành công nhưng đọc lại không thấy key=value"
-  fi
-else
-  fail "Không thể ghi secret vào demo/test — kiểm tra KV engine đã bật chưa"
-fi
-
 echo
 if [ "$failures" -eq 0 ]; then
   echo "Tất cả kiểm tra đều đạt."

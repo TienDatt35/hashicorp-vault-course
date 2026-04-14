@@ -38,28 +38,6 @@ vault namespace create test
 vault secrets list
 # Các engine mặc định: cubbyhole/, identity/, secret/, sys/
 
-# Bước 4 — Bật userpass auth method và tạo user
-vault auth enable userpass
-# Nếu đã bật rồi sẽ thấy: Error enabling userpass auth: path is already in use at userpass/
-# Điều này không ảnh hưởng — bước tiếp theo vẫn chạy được
-
-vault write auth/userpass/users/testuser password=testpass policies=default
-# Tạo user testuser với password testpass và policy default
-
-# Bước 5 — Bật KV v2 secrets engine tại path demo/
-vault secrets enable -path=demo -version=2 kv
-# Nếu đã bật rồi sẽ thấy: Error enabling: Error making API request. ... path is already in use
-# Điều này không ảnh hưởng — secret vẫn có thể ghi và đọc
-
-# Bước 6 — Ghi và đọc secret
-vault kv put demo/test key=value
-# Output: Key              Value
-#         ---              -----
-#         created_time     ...
-#         ...
-
-vault kv get demo/test
-# Xác nhận key=value có trong output
 ```
 
 ## Kiểm tra lại
