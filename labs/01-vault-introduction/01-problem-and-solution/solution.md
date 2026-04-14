@@ -56,7 +56,7 @@ vault write transit/encrypt/my-key plaintext="$PLAINTEXT_B64"
 CIPHERTEXT="vault:v1:..."   # dán ciphertext của bạn vào đây
 vault write transit/decrypt/my-key ciphertext="$CIPHERTEXT"
 # Vault trả về plaintext dạng base64 — decode để đọc:
-echo "BASE64_FROM_VAULT" | base64 --decode
+echo "BASE64_FROM_VAULT" | base64 -d
 # Kết quả phải là: hello vault
 
 # Bước 9a — Bật audit device file
@@ -66,14 +66,14 @@ vault audit enable file file_path=/tmp/vault_audit.log
 vault kv get kv/app/db
 
 # Bước 9c — Quan sát audit log
-tail -n 5 /tmp/vault_audit.log
+tail -n 5 /tmp/vault_audit.log | jq
 # Bạn sẽ thấy JSON entry ghi lại request vault kv get vừa rồi
 ```
 
 ## Kiểm tra lại
 
-```bash
-bash verify.sh
+```sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

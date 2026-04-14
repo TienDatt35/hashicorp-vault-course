@@ -63,3 +63,59 @@
   border-radius: 6px;
   font-size: 0.95rem;
 }
+
+.detailHint {
+  color: var(--ifm-color-emphasis-500);
+  font-style: italic;
+}
+
+/* ── Interaction / sequence diagram ─────────────────────────── */
+
+.actorBox {
+  fill: var(--ifm-color-primary);
+  stroke: var(--ifm-color-primary-darker);
+  stroke-width: 1.5;
+}
+
+.actorText {
+  fill: #000;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.lifeline {
+  stroke: var(--ifm-color-emphasis-400);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+}
+
+.arrowFill {
+  fill: var(--ifm-color-emphasis-700);
+}
+
+.msg { cursor: pointer; }
+
+.msgLine {
+  stroke: var(--ifm-color-emphasis-600);
+  stroke-width: 2;
+  fill: none;
+  transition: stroke 0.15s;
+}
+
+.msgLabel {
+  fill: var(--ifm-font-color-base);
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.msgActive .msgLine {
+  stroke: var(--ifm-color-primary-darker);
+  stroke-width: 2.5;
+}
+
+.msgActive .msgLabel {
+  fill: var(--ifm-color-primary-darker);
+  font-weight: 700;
+}

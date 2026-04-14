@@ -13,7 +13,7 @@ Bạn sẽ trực tiếp trải nghiệm hai trong năm trụ cột của Vault:
 
 - Bạn đang làm việc bên trong Codespace của repo này, nên Vault dev server đã
   được khởi động sẵn ở `http://127.0.0.1:8200` với root token là `root`.
-- Bạn đã đọc bài lý thuyết `theory.mdx` tương ứng trong `site/docs/`.
+- Bạn đã đọc bài lý thuyết tương ứng trong `site/docs/`.
 
 ## Nhiệm vụ của bạn
 

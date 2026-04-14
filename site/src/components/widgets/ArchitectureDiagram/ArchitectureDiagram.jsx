@@ -4,9 +4,9 @@ import styles from './ArchitectureDiagram.module.css';
 /**
  * <ArchitectureDiagram variant="auth-policy-secret" />
  *
- * Inline-SVG diagrams of core Vault flows. Each variant is a small
- * declarative spec: nodes (with positions), edges, and per-node explanations.
- * Click a node to see its explanation; press Play to step through the flow.
+ * Hỗ trợ hai kiểu sơ đồ:
+ *   - linear: chuỗi node ngang, click để xem giải thích (mặc định)
+ *   - interaction: sequence diagram với actors + mũi tên tương tác
  */
 
 const VARIANTS = {
@@ -76,10 +76,81 @@ const VARIANTS = {
     ],
     edges: [['auth', 'token'], ['token', 'engine'], ['engine', 'storage'], ['engine', 'audit']],
   },
+
+  // --- Interaction (sequence) diagram ---
+  'workflow-5-steps': {
+    type: 'interaction',
+    title: 'Workflow 5 bước — tương tác giữa Client, Vault và hệ thống xác minh',
+    actors: [
+      {
+        id: 'client',
+        x: 140,
+        lines: ['Client'],
+        desc: 'Người dùng, ứng dụng, CI job, hoặc bất kỳ workload nào cần truy cập secrets từ Vault.',
+      },
+      {
+        id: 'vault',
+        x: 440,
+        lines: ['Vault'],
+        desc: 'Trung tâm xử lý: nhận credentials, điều phối xác minh, cấp token, kiểm tra policy và trả dữ liệu.',
+      },
+      {
+        id: 'external',
+        x: 740,
+        lines: ['Hệ thống xác minh', '(AWS / K8s / OIDC)'],
+        desc: 'Với auth method tích hợp bên ngoài (AWS IAM, Kubernetes, OIDC), Vault gọi sang đây để xác nhận danh tính. Với userpass hoặc AppRole, Vault xử lý nội bộ — không gọi ra ngoài.',
+      },
+    ],
+    messages: [
+      {
+        from: 'client',
+        to: 'vault',
+        y: 140,
+        label: '① Gửi credentials',
+        desc: 'Client gửi thông tin xác thực đến auth method: username/password (userpass), role_id + secret_id (AppRole), hoặc cloud identity token (AWS/GCP/Azure/OIDC).',
+      },
+      {
+        from: 'vault',
+        to: 'external',
+        y: 210,
+        label: '② Xác minh danh tính',
+        desc: 'Vault chuyển credentials sang hệ thống bên ngoài để kiểm tra (AWS STS GetCallerIdentity, Kubernetes TokenReview API, OIDC userinfo…). Với userpass/AppRole, bước này diễn ra nội bộ trong Vault.',
+      },
+      {
+        from: 'external',
+        to: 'vault',
+        y: 280,
+        label: '③ Phản hồi xác nhận / từ chối',
+        desc: 'Hệ thống bên ngoài trả kết quả. Nếu danh tính hợp lệ, Vault tiến hành cấp token. Nếu thất bại, Vault trả lỗi 403 ngay và không cấp token nào.',
+      },
+      {
+        from: 'vault',
+        to: 'client',
+        y: 350,
+        label: '④ Cấp token (TTL + policies)',
+        desc: 'Vault tạo token đính kèm TTL (thời gian sống) và danh sách policies. Policies quy định client được đọc/ghi/list những path nào. Đây là "key card" cho mọi request tiếp theo.',
+      },
+      {
+        from: 'client',
+        to: 'vault',
+        y: 430,
+        label: '⑤ Request kèm X-Vault-Token',
+        desc: 'Mọi request tiếp theo đều mang token qua header X-Vault-Token hoặc biến môi trường VAULT_TOKEN. Vault kiểm tra: token còn hiệu lực không? Token có capability (read/write/…) tại path được yêu cầu không?',
+      },
+      {
+        from: 'vault',
+        to: 'client',
+        y: 500,
+        label: '⑥ Trả dữ liệu  /  403',
+        desc: 'Nếu token hợp lệ và đủ quyền — Vault trả dữ liệu. Nếu token hết hạn, bị revoke, hoặc policy không cho phép path đó — Vault từ chối với 403 Permission Denied.',
+      },
+    ],
+  },
 };
 
-export default function ArchitectureDiagram({ variant = 'auth-policy-secret' }) {
-  const spec = VARIANTS[variant];
+// ─── Linear renderer ────────────────────────────────────────────────────────
+
+function LinearDiagram({ spec }) {
   const [selected, setSelected] = useState(spec.nodes[0].id);
   const [playing, setPlaying] = useState(false);
 
@@ -105,12 +176,17 @@ export default function ArchitectureDiagram({ variant = 'auth-policy-secret' }) 
         </button>
       </div>
       <svg viewBox="0 0 880 200" className={styles.svg} role="img" aria-label={spec.title}>
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
+                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+          </marker>
+        </defs>
         {spec.edges.map(([from, to], i) => {
           const a = spec.nodes.find((n) => n.id === from);
           const b = spec.nodes.find((n) => n.id === to);
           return (
-            <line
-              key={i}
+            <line key={i}
               x1={a.x + 60} y1={a.y}
               x2={b.x - 60} y2={b.y}
               className={styles.edge}
@@ -118,15 +194,8 @@ export default function ArchitectureDiagram({ variant = 'auth-policy-secret' }) 
             />
           );
         })}
-        <defs>
-          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5"
-                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
-          </marker>
-        </defs>
         {spec.nodes.map((n) => (
-          <g
-            key={n.id}
+          <g key={n.id}
             className={`${styles.node} ${selected === n.id ? styles.nodeActive : ''}`}
             onClick={() => setSelected(n.id)}
             transform={`translate(${n.x}, ${n.y})`}
@@ -141,4 +210,150 @@ export default function ArchitectureDiagram({ variant = 'auth-policy-secret' }) 
       </div>
     </div>
   );
+}
+
+// ─── Interaction (sequence) renderer ────────────────────────────────────────
+
+const ACTOR_BOX_W = 148;
+const ACTOR_BOX_H = 52;
+const LIFELINE_TOP = ACTOR_BOX_H + 12;
+
+function InteractionDiagram({ spec }) {
+  const lastY = spec.messages[spec.messages.length - 1].y;
+  const viewH = lastY + 40;
+  const viewW = 880;
+
+  const [selected, setSelected] = useState(null);
+  const [playing, setPlaying] = useState(false);
+
+  function play() {
+    if (playing) return;
+    setPlaying(true);
+    setSelected(null);
+    spec.messages.forEach((_, i) => {
+      setTimeout(() => {
+        setSelected(i);
+        if (i === spec.messages.length - 1) setPlaying(false);
+      }, i * 1000);
+    });
+  }
+
+  const selectedMsg = selected !== null ? spec.messages[selected] : null;
+  const selectedActor = selected === null
+    ? null
+    : spec.actors.find(
+        (a) => a.id === spec.messages[selected].from || a.id === spec.messages[selected].to
+      );
+
+  // Build description: prefer message desc, fall back to nothing
+  const detailTitle = selectedMsg ? selectedMsg.label.replace(/^[①②③④⑤⑥]\s*/, '') : null;
+  const detailDesc  = selectedMsg ? selectedMsg.desc : null;
+
+  return (
+    <div className={styles.wrap}>
+      <div className={styles.header}>
+        <strong>{spec.title}</strong>
+        <button className={styles.play} onClick={play} disabled={playing}>
+          {playing ? 'Đang chạy…' : '▶ Phát'}
+        </button>
+      </div>
+
+      <svg viewBox={`0 0 ${viewW} ${viewH}`} className={styles.svg} role="img" aria-label={spec.title}>
+        <defs>
+          <marker id="seq-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M 0 0 L 10 5 L 0 10 z" className={styles.arrowFill} />
+          </marker>
+        </defs>
+
+        {/* Actor boxes + lifelines */}
+        {spec.actors.map((actor) => {
+          const bx = actor.x - ACTOR_BOX_W / 2;
+          return (
+            <g key={actor.id}>
+              <rect
+                x={bx} y={4}
+                width={ACTOR_BOX_W} height={ACTOR_BOX_H}
+                rx={8}
+                className={styles.actorBox}
+              />
+              {actor.lines.map((line, i) => (
+                <text
+                  key={i}
+                  x={actor.x}
+                  y={4 + ACTOR_BOX_H / 2 + (i - (actor.lines.length - 1) / 2) * 17}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className={styles.actorText}
+                >
+                  {line}
+                </text>
+              ))}
+              {/* Lifeline */}
+              <line
+                x1={actor.x} y1={LIFELINE_TOP}
+                x2={actor.x} y2={viewH - 6}
+                className={styles.lifeline}
+              />
+            </g>
+          );
+        })}
+
+        {/* Messages */}
+        {spec.messages.map((msg, i) => {
+          const fromActor = spec.actors.find((a) => a.id === msg.from);
+          const toActor   = spec.actors.find((a) => a.id === msg.to);
+          const goRight   = fromActor.x < toActor.x;
+          // Leave a small gap at the arrowhead end
+          const gap = 12;
+          const x1  = goRight ? fromActor.x + gap : fromActor.x - gap;
+          const x2  = goRight ? toActor.x   - gap : toActor.x   + gap;
+          const isActive = selected === i;
+
+          return (
+            <g
+              key={i}
+              className={`${styles.msg} ${isActive ? styles.msgActive : ''}`}
+              onClick={() => setSelected(isActive ? null : i)}
+            >
+              {/* Invisible wider hit area */}
+              <line x1={x1} y1={msg.y} x2={x2} y2={msg.y} strokeWidth={20} stroke="transparent" />
+              {/* Visible arrow */}
+              <line
+                x1={x1} y1={msg.y}
+                x2={x2} y2={msg.y}
+                className={styles.msgLine}
+                markerEnd="url(#seq-arrow)"
+              />
+              {/* Label */}
+              <text
+                x={(fromActor.x + toActor.x) / 2}
+                y={msg.y - 9}
+                textAnchor="middle"
+                className={styles.msgLabel}
+              >
+                {msg.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      <div className={styles.detail}>
+        {detailTitle
+          ? <><strong>{detailTitle}.</strong> {detailDesc}</>
+          : <span className={styles.detailHint}>Nhấn vào mũi tên hoặc nhấn "Phát" để xem giải thích từng bước.</span>
+        }
+      </div>
+    </div>
+  );
+}
+
+// ─── Public component ────────────────────────────────────────────────────────
+
+export default function ArchitectureDiagram({ variant = 'auth-policy-secret' }) {
+  const spec = VARIANTS[variant];
+  if (!spec) return <p>Variant "{variant}" không tồn tại.</p>;
+  if (spec.type === 'interaction') return <InteractionDiagram spec={spec} />;
+  return <LinearDiagram spec={spec} />;
 }
