@@ -8,7 +8,7 @@
 # Kiểm tra instance Vault riêng ở port 8300 (không phải dev server 8200).
 # Chạy bằng: bash verify.sh
 
-set -uo pipefail
+set -u pipefail
 
 LAB_DIR="$HOME/vault-lab"
 LAB_CONFIG="$LAB_DIR/config.hcl"

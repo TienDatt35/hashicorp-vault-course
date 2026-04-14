@@ -32,12 +32,11 @@ cd ~/vault-lab
 
 curl -O https://releases.hashicorp.com/vault/1.21.4/vault_1.21.4_linux_386.zip
 
-# Giải nén (cài unzip nếu chưa có)
-apt-get install -y unzip 2>/dev/null || true
+# Giải nén 
 unzip vault_1.21.4_linux_386.zip
 
 # Copy vào /usr/local/bin để dùng lệnh vault ngắn gọn
-cp vault /usr/local/bin/vault
+sudo cp vault /usr/local/bin/vault
 
 # Xác nhận
 vault version
@@ -45,17 +44,15 @@ vault version
 
 # Bước 3 — copy config từ thư mục lab
 # (chạy từ thư mục labs/01-vault-introduction/04-install-vault/)
-cp vault-lab.hcl ~/vault-lab/config.hcl
+cp /workspaces/hashicorp-vault-course/labs/01-vault-introduction/04-install-vault/vault-lab.hcl ~/vault-lab/config.hcl
 
 # Xem lại config
 cat ~/vault-lab/config.hcl
 
-# Bước 4 — khởi động Vault server
-nohup vault server -config=~/vault-lab/config.hcl \
-  > ~/vault-lab/vault.log 2>&1 &
+# Bước 4 — khởi động Vault server, chạy lệnh tại /home/vaulttrainee/vault-lab
+sudo vault server -config=config.hcl 
 
-sleep 2
-
+#Mở terminal mới và kiểm tra
 VAULT_ADDR=http://127.0.0.1:8300 vault status
 # Initialized = false, Sealed = true
 
@@ -66,8 +63,8 @@ VAULT_ADDR=http://127.0.0.1:8300 \
   -key-threshold=2 \
   | tee ~/vault-lab/init.txt
 
-# Bước 6 — unseal (2 key bất kỳ trong 3)
-# Cách nhập tay:
+# Bước 6 — unseal (2 key bất kỳ trong 3) 
+# Cách nhập tay: nhập 2 trong 3 key
 VAULT_ADDR=http://127.0.0.1:8300 vault operator unseal
 VAULT_ADDR=http://127.0.0.1:8300 vault operator unseal
 
@@ -76,6 +73,8 @@ UNSEAL_KEY_1=$(grep "Unseal Key 1" ~/vault-lab/init.txt | awk '{print $NF}')
 UNSEAL_KEY_2=$(grep "Unseal Key 2" ~/vault-lab/init.txt | awk '{print $NF}')
 VAULT_ADDR=http://127.0.0.1:8300 vault operator unseal "$UNSEAL_KEY_1"
 VAULT_ADDR=http://127.0.0.1:8300 vault operator unseal "$UNSEAL_KEY_2"
+
+#Sau đó bạn sẽ nhận thấy Initialized     true; Sealed          false là thành công
 
 # Bước 7 — đăng nhập và kiểm tra
 ROOT_TOKEN=$(grep "Initial Root Token" ~/vault-lab/init.txt | awk '{print $NF}')
@@ -89,8 +88,8 @@ VAULT_ADDR=http://127.0.0.1:8300 vault secrets list
 
 ## Kiểm tra lại
 
-```bash
-bash verify.sh
+```sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

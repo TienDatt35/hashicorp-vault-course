@@ -42,8 +42,8 @@ vault secrets list
 
 ## Kiểm tra lại
 
-```bash
-bash verify.sh
+```sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.
