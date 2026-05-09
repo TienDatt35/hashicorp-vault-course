@@ -112,8 +112,8 @@ hoàn thành quá trình unseal — barrier đã nhận encryption key vào memo
 ### Bước 6 — Đăng nhập bằng initial root token
 
 ```bash
-ROOT_TOKEN=$(cat /tmp/vault-lab/init-output.json | jq -r '.root_token')
-vault login "$ROOT_TOKEN"
+VAULT_TOKEN=$(cat /tmp/vault-lab/init-output.json | jq -r '.root_token')
+vault login "$VAULT_TOKEN"
 ```
 
 Xác nhận login thành công và thấy `policies: [root]`.
