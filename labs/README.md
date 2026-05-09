@@ -10,6 +10,19 @@ Mỗi bài thực hành nằm trong một thư mục riêng, gồm ba file:
 
 ---
 
+## Lưu ý về môi trường
+
+Hầu hết các bài lab sử dụng **Dev Environment** — Vault dev server đã được
+khởi động tự động trong Codespace, bạn không cần cấu hình thêm gì.
+
+Ngoại lệ:
+
+- **Chương 1, Bài 4** (`01-vault-introduction/04-install-vault`) yêu cầu
+  **Self-Setup Environment** — bạn sẽ tự tải và cài Vault từ đầu. Bài này
+  không dùng Vault dev server có sẵn.
+
+---
+
 ## Cách làm một bài thực hành
 
 ### Bước 1 — Di chuyển vào thư mục bài lab
@@ -27,7 +40,7 @@ cd labs/01-vault-introduction/01-problem-and-solution
 ### Bước 2 — Đọc README.md
 
 ```bash
-cat README.md
+Ctrl + Shift + V file README.md
 ```
 
 Hoặc mở file trong VS Code bằng cách nhấn chuột phải → **Open Preview** để
@@ -42,7 +55,7 @@ Thực hiện các bước trong `README.md` trực tiếp trên terminal. Vault
 server đã chạy sẵn ở `http://127.0.0.1:8200` với token `root` — bạn không
 cần khởi động lại.
 
-### Bước 4 — Xem solution.md nếu không biết làm
+### Bước 4 — Xem solution.md nếu gặp khó khăn
 
 ```bash
 cat solution.md
