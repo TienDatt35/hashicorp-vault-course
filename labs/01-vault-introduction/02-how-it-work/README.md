@@ -1,171 +1,128 @@
 ---
-title: "Thực hành workflow: authenticate, token lookup và revoke"
+title: Khám phá Vault qua CLI, UI và HTTP API
 estMinutes: 20
 ---
 
-# Thực hành workflow: authenticate, token lookup và revoke
+# Khám phá Vault qua CLI, UI và HTTP API
 
 ## Mục tiêu
 
-Bạn sẽ thực hành toàn bộ workflow end-to-end của Vault: từ bật auth method, tạo
-user, authenticate để nhận token, kiểm tra thông tin token, đọc secret, cho đến
-revoke token và xác nhận rằng token đã bị vô hiệu hóa.
+Bạn sẽ tương tác với Vault theo ba cách: **CLI** (lệnh `vault`), **UI** (trình
+duyệt web), và **HTTP API** (curl). Ba cách này đều gọi vào cùng một Vault —
+hiểu sự tương đương giữa chúng giúp bạn linh hoạt khi tích hợp Vault vào hệ
+thống thực.
 
 ## Yêu cầu
 
-- Bạn đang làm việc bên trong Codespace của repo này, nên Vault dev server đã
-  được khởi động sẵn ở `http://127.0.0.1:8200` với root token là `root`.
-- Bạn đã đọc bài lý thuyết tương ứng trong `site/docs`.
+- Vault dev server đã chạy sẵn ở `http://127.0.0.1:8200` với root token `root`.
+- Bạn đã hoàn thành lab 1 — secret `kv/app/db` phải tồn tại.
+- `jq` đã được cài sẵn trong Codespace.
 
 ## Nhiệm vụ của bạn
 
 ### Bước 1 — Kiểm tra Vault dev server
 
-Chạy lệnh kiểm tra trạng thái Vault và xác nhận server đang chạy ở chế độ dev
-(Initialized: true, Sealed: false).
-
-### Bước 2 — Bật auth method userpass
-
-Enable auth method `userpass` trên Vault. Nếu đã enable rồi thì không cần
-enable lại.
-
-### Bước 3 — Tạo user alice
-
-Tạo user với username `alice`, password `alice-password`, và gán policy
-`default`.
-
-### Bước 4 — Login bằng alice và lưu token
-
-Login vào Vault bằng alice. Lưu giá trị token nhận được vào biến shell
-`ALICE_TOKEN` để dùng cho các bước tiếp theo.
-
-> Gợi ý: thêm flag `-format=json` vào lệnh login để lấy output dạng JSON,
-> sau đó dùng `jq` để parse token ra.
-
-### Bước 5 — Xem chi tiết token của alice
-
-Dùng `ALICE_TOKEN` để xem thông tin chi tiết của token đó: TTL còn lại,
-danh sách policies đang áp dụng, và accessor.
-
-### Bước 6 — Kiểm tra capabilities tại một path
-
-Kiểm tra những capabilities nào token của alice có tại path
-`secret/data/myapp/config`.
-
-> Kết quả kỳ vọng: `deny` — alice hiện chỉ có policy `default`, vốn không
-> cấp quyền trên path này. Bước tiếp theo sẽ khắc phục điều đó.
-
-### Bước 7 — Tạo policy và cấp quyền cho alice
-
-Tạo một policy tên `myapp-reader` cho phép `read` và `list` trên path
-`secret/data/myapp/config`. Sau đó cập nhật user alice để gán thêm policy
-này.
-
-Cuối bước, login lại bằng alice để lấy token mới (token cũ chưa có policy
-mới), lưu vào biến `ALICE_TOKEN`.
-
-> Gợi ý: `vault policy write <tên> <file>` hoặc dùng heredoc để truyền nội
-> dung HCL trực tiếp. Xem thêm: `vault write auth/userpass/users/alice policies=...`
-
-### Bước 8 — Ghi và đọc secret
-
-Dùng root token để ghi secret vào `secret/myapp/config` với giá trị
-`env=production`. Sau đó dùng `ALICE_TOKEN` để đọc lại secret đó và xác nhận
-dữ liệu trả về đúng.
-
-> Lưu ý: `secret/` là KV v2 mount mặc định trong Vault dev mode — bạn không
-> cần enable riêng.
-
-### Bước 9 — Revoke token và xác nhận bị từ chối
-
-Dùng root token để revoke `ALICE_TOKEN`. Sau đó thử dùng `ALICE_TOKEN` để
-thực hiện bất kỳ lệnh nào — bạn phải nhận lỗi "bad token" hoặc "permission
-denied".
-
-> Gợi ý: hãy tự suy nghĩ trước khi mở `solution.md`. Nếu bí, đối chiếu với
-> phần giải đáp.
-
----
-
-## Khám phá thêm — UI và HTTP API
-
-Hai bước dưới đây không bắt buộc và không được kiểm tra bởi `verify.sh`.
-Mục tiêu là để bạn tận mắt thấy rằng CLI, UI và HTTP API đều là cách khác nhau
-để gọi đến cùng một Vault.
-
-### Khám phá A — Vault UI
-
-1. Mở Vault UI trong trình duyệt. Trong Codespace, nhấn vào tab **Ports** ở
-   thanh dưới VS Code và mở port `8200` bằng nút "Open in Browser". URL sẽ có
-   dạng `https://<codespace-name>-8200.app.github.dev`.
-
-2. Đăng nhập bằng **Token method**, nhập `root`.
-
-3. Điều hướng đến **Secret Engines → secret → myapp/config** để xem secret bạn
-   đã ghi ở bước 8. Nhấn vào version history để thấy Vault lưu lịch sử.
-
-4. Vào **Access → Auth Methods** để thấy `userpass/` đang được enable. Vào
-   **Policies** để xem nội dung policy `myapp-reader` bạn đã tạo.
-
-5. Vào **Access → Entities** và xem thông tin token/entity của alice.
-
-> Mỗi thao tác bạn làm trên UI thực chất là một HTTP request đến
-> `/v1/...` — bật DevTools của trình duyệt (F12 → Network) để tận mắt thấy
-> các call API phía sau.
-
-### Khám phá B — HTTP API bằng curl
-
-Chạy các lệnh dưới đây trong terminal. So sánh output với lệnh CLI tương đương.
-
-**1. Kiểm tra trạng thái Vault (không cần token):**
-
 ```bash
-curl -s $VAULT_ADDR/v1/sys/health | jq .
-# So sánh: vault status
+vault status
 ```
 
-**2. Đọc secret bằng API (dùng root token):**
+Xác nhận `Sealed: false`.
+
+### Bước 2 — Xem thông tin token hiện tại (CLI)
+
+Xem thông tin chi tiết của token đang dùng:
 
 ```bash
-curl -s \
-  -H "X-Vault-Token: root" \
-  $VAULT_ADDR/v1/secret/data/myapp/config | jq .data.data
-# So sánh: vault kv get secret/myapp/config
+vault token lookup
 ```
 
-**3. Lookup token của alice (tạo lại token trước nếu cần):**
+Quan sát và ghi nhận các trường: `id`, `policies`, `ttl`, `type`.
+Root token có `ttl = 0` (không hết hạn) và `policies = [root]`.
+
+### Bước 3 — Kiểm tra token capabilities (CLI)
+
+Kiểm tra xem token hiện tại có quyền gì trên path `kv/data/app/db`:
 
 ```bash
-# Lấy token mới của alice
-ALICE_TOKEN=$(vault login \
-  -method=userpass -format=json \
-  username=alice password=alice-password \
-  | jq -r '.auth.client_token')
-
-# Gọi API để lookup token đó
-curl -s \
-  -H "X-Vault-Token: root" \
-  --request POST \
-  --data "{\"token\": \"$ALICE_TOKEN\"}" \
-  $VAULT_ADDR/v1/auth/token/lookup | jq '{policies: .data.policies, ttl: .data.ttl}'
-# So sánh: vault token lookup "$ALICE_TOKEN"
+vault token capabilities kv/data/app/db
 ```
 
-**4. Kiểm tra capabilities qua API:**
+Root token phải trả về `root` — nghĩa là có toàn quyền trên mọi path.
+
+Thử thêm một path khác, ví dụ `sys/health`, để thấy kết quả luôn là `root`
+với root token.
+
+### Bước 4 — Khám phá Vault UI
+
+1. Trong Codespace, mở tab **Ports** ở thanh dưới VS Code và chọn **Open in
+   Browser** tại port `8200`.
+
+2. Đăng nhập bằng **Token** method, nhập `root`.
+
+3. Điều hướng và ghi nhận những mục sau:
+   - **Secrets Engines**: liệt kê các engine đang bật, trong đó có `kv/` bạn
+     đã bật ở lab 1.
+   - **kv → app/db**: xem secret và version history.
+   - **Access → Auth Methods**: thấy `token/` luôn có mặt.
+   - **Access → Policies**: xem nội dung policy `root` và `default`.
+
+4. Bật DevTools trình duyệt (F12 → Network), sau đó nhấn vào bất kỳ thông
+   tin nào trên UI. Quan sát các HTTP request dạng `GET /v1/...` hoặc
+   `LIST /v1/...` — đây chính là API mà CLI cũng đang gọi.
+
+### Bước 5 — Truy vấn Vault qua HTTP API (curl)
+
+Thực hiện các thao tác tương đương bước 2-3 nhưng qua HTTP API.
+
+**Kiểm tra trạng thái (không cần token):**
+
+```bash
+curl -s $VAULT_ADDR/v1/sys/health | jq '{initialized, sealed, standby}'
+```
+
+**Lookup token hiện tại qua API:**
 
 ```bash
 curl -s \
   -H "X-Vault-Token: root" \
   --request POST \
-  --data "{\"token\": \"$ALICE_TOKEN\", \"path\": \"secret/data/myapp/config\"}" \
+  --data '{"token": "root"}' \
+  $VAULT_ADDR/v1/auth/token/lookup | jq '{policies: .data.policies, ttl: .data.ttl, type: .data.type}'
+```
+
+**Đọc secret kv/app/db qua API:**
+
+```bash
+curl -s \
+  -H "X-Vault-Token: root" \
+  $VAULT_ADDR/v1/kv/data/app/db | jq .data.data
+```
+
+**Kiểm tra capabilities qua API:**
+
+```bash
+curl -s \
+  -H "X-Vault-Token: root" \
+  --request POST \
+  --data '{"token": "root", "path": "kv/data/app/db"}' \
   $VAULT_ADDR/v1/sys/capabilities | jq .
-# So sánh: vault token capabilities "$ALICE_TOKEN" secret/data/myapp/config
 ```
 
-> Mỗi lệnh `vault ...` thực chất là wrapper gọi đúng endpoint `/v1/...` này.
-> Khi viết ứng dụng tích hợp Vault, bạn sẽ dùng HTTP API hoặc SDK thay vì CLI.
+### Bước 6 — So sánh CLI và API
 
----
+Chạy cặp lệnh sau và so sánh output của chúng:
+
+```bash
+# Qua CLI
+vault kv get -format=json kv/app/db | jq .data.data
+
+# Qua API (cùng kết quả)
+curl -s -H "X-Vault-Token: root" $VAULT_ADDR/v1/kv/data/app/db | jq .data.data
+```
+
+Hai output phải trả về cùng dữ liệu — CLI chỉ là wrapper gọi HTTP API.
+
+> Gợi ý: nếu bí ở bất kỳ bước nào, hãy mở `solution.md` để đối chiếu.
 
 ## Tiêu chí thành công
 
