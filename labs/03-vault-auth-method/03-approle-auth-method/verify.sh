@@ -101,7 +101,7 @@ fi
 
 # --- Kiểm tra 9: Token lấy được có policy default (Bước 7) -------------------
 if [ -n "${LOGIN_TOKEN:-}" ]; then
-  TOKEN_POLICIES=$(vault token lookup -field=policies "$LOGIN_TOKEN" 2>/dev/null || echo "")
+  TOKEN_POLICIES=$(vault token lookup -format=json "$LOGIN_TOKEN" 2>/dev/null | jq -r '.data.policies | join(" ")' 2>/dev/null || echo "")
   if echo "$TOKEN_POLICIES" | grep -q "default"; then
     pass "Token từ AppRole login mang policy 'default'"
   else
