@@ -1,101 +1,95 @@
 ---
-title: Đáp án mẫu — Kiến Trúc Vault và Path-based Routing
+title: Đáp án mẫu — Vault Init và Unseal bằng Key Shards
 ---
 
 # Đáp án mẫu
 
-> Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng
-> đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> Đây là một cách giải chuẩn. Có thể có nhiều cách khác — miễn là
+> `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
-Bài thực hành này minh họa trực tiếp hai khái niệm cốt lõi trong lý thuyết: path-based routing và reserved paths. Khi bạn enable engine tại `myapp/`, Vault router ghi nhận prefix này và forward mọi request có prefix `myapp/` tới đúng engine đó. System Backend tại `sys/` luôn tồn tại và không thể unmount — đây là "hệ thần kinh trung ương" của Vault. Reserved paths như `cubbyhole/` được bảo vệ cứng ở tầng router.
+Bài này thực hành quy trình mà dev mode bỏ qua:
+
+1. **Init**: Vault tạo root key, encryption key, unseal keys (Shamir shares),
+   và initial root token. Vault không lưu root key — mất đủ threshold keys
+   đồng nghĩa mất Vault vĩnh viễn.
+
+2. **Unseal**: Vault nhận từng key share, dùng Shamir Secret Sharing để
+   reconstruct root key, dùng root key giải mã encryption key, nạp vào
+   barrier. Chỉ sau khi đủ threshold keys thì barrier mới mở.
+
+3. **Seal/Unseal lại**: Bất kỳ tổ hợp nào đủ threshold (2/3) đều hợp lệ.
+   Sau khi seal, encryption key bị xóa khỏi memory ngay lập tức.
+
+Điểm quan trọng cần ghi nhớ: dev mode (`-dev`) làm tất cả điều này tự động
+và lưu dữ liệu trong memory. Production mode dùng storage bền vững (file,
+Raft, Consul...) và yêu cầu unseal thủ công mỗi lần restart.
 
 ## Các lệnh
 
-### Bước 1 — Kiểm tra Vault và xem mount hiện tại
-
 ```bash
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='root'
+# Bước 1 — Tạo cấu hình
+mkdir -p /tmp/vault-lab/data
 
-# Xem trạng thái Vault
+cat > /tmp/vault-lab/config.hcl <<EOF
+storage "file" {
+  path = "/tmp/vault-lab/data"
+}
+
+listener "tcp" {
+  address     = "127.0.0.1:8202"
+  tls_disable = true
+}
+
+disable_mlock = true
+EOF
+
+# Bước 2 — Khởi động server
+nohup vault server -config=/tmp/vault-lab/config.hcl >/tmp/vault-lab/server.log 2>&1 &
+sleep 2
+
+export VAULT_ADDR=http://127.0.0.1:8202
 vault status
+# Kết quả: Initialized: false, Sealed: true
 
-# Xem tất cả secrets engines đang mount
+# Bước 3 — Init với 3 shares, threshold 2
+vault operator init -key-shares=3 -key-threshold=2 -format=json > /tmp/vault-lab/init-output.json
+cat /tmp/vault-lab/init-output.json | jq '{unseal_keys: .unseal_keys_b64, root_token: .root_token}'
+
+vault status
+# Kết quả vẫn: Sealed: true (init không unseal)
+
+# Bước 4 — Unseal key share 1
+UNSEAL_KEY_1=$(cat /tmp/vault-lab/init-output.json | jq -r '.unseal_keys_b64[0]')
+vault operator unseal "$UNSEAL_KEY_1"
+# Output: Unseal Progress: 1/2, Sealed: true
+
+# Bước 5 — Unseal key share 2
+UNSEAL_KEY_2=$(cat /tmp/vault-lab/init-output.json | jq -r '.unseal_keys_b64[1]')
+vault operator unseal "$UNSEAL_KEY_2"
+# Output: Sealed: false — Vault đã unsealed!
+
+# Bước 6 — Đăng nhập và kiểm tra
+ROOT_TOKEN=$(cat /tmp/vault-lab/init-output.json | jq -r '.root_token')
+vault login "$ROOT_TOKEN"
+
 vault secrets list
+vault secrets enable kv
+vault kv put kv/test hello=world
+vault kv get kv/test
 
-# Xem tất cả auth methods đang enable
-vault auth list
+# Bước 7 — Seal và unseal lại bằng key 1 và key 3
+vault operator seal
+vault status
+# Kết quả: Sealed: true
+
+UNSEAL_KEY_3=$(cat /tmp/vault-lab/init-output.json | jq -r '.unseal_keys_b64[2]')
+vault operator unseal "$UNSEAL_KEY_1"
+vault operator unseal "$UNSEAL_KEY_3"
+vault status
+# Kết quả: Sealed: false
 ```
-
-Trong dev mode, bạn sẽ thấy mặc định có `cubbyhole/`, `identity/`, `secret/` (KV v2), và `sys/` trong secrets list. Auth list có sẵn `token/`. Đây là các mount được Vault tự khởi tạo khi chạy dev server.
-
-### Bước 2 — Enable secrets engine tại custom path
-
-```bash
-# Enable KV engine tại path tùy chỉnh myapp/
-vault secrets enable -path=myapp kv
-
-# Xác nhận mount xuất hiện
-vault secrets list
-
-# Ghi secret vào engine qua path myapp/
-vault kv put myapp/config db_host=localhost
-
-# Đọc lại secret
-vault kv get myapp/config
-```
-
-Bạn dùng `myapp/config` vì engine được mount tại `myapp/` — đây là prefix mà Vault dùng để route request. Nếu bạn gõ `kv/config`, Vault sẽ tìm engine ở `kv/` (một mount khác, hoặc không tồn tại). Path-based routing hoạt động thuần túy theo prefix.
-
-### Bước 3 — Khám phá System Backend qua `sys/`
-
-```bash
-# Đọc thông tin mount qua CLI
-vault read sys/mounts
-
-# Hoặc gọi REST API trực tiếp
-curl -s -H "X-Vault-Token: root" http://127.0.0.1:8200/v1/sys/mounts | python3 -m json.tool | head -60
-```
-
-Output của `vault read sys/mounts` trả về thông tin đầy đủ về từng mount: type, accessor, config options. Đây chính là dữ liệu mà `vault secrets list` hiển thị ở dạng rút gọn. Lệnh `vault secrets list` thực chất chỉ là wrapper gọi `GET /v1/sys/mounts`.
-
-### Bước 4 — Thử mount vào reserved path (kết quả mong đợi là lỗi)
-
-```bash
-# Lệnh này sẽ báo lỗi — đây là hành vi đúng
-vault secrets enable -path=cubbyhole kv
-```
-
-Vault sẽ trả về lỗi tương tự:
-```
-Error enabling: Error making API request.
-...
-* existing mount at cubbyhole/
-```
-
-Lỗi này xác nhận rằng `cubbyhole/` là reserved path đã được mount sẵn bởi Vault và không thể dùng cho user-defined mount. Bạn không cần làm gì thêm ở bước này — quan sát lỗi là mục tiêu.
-
-### Bước 5 — Enable auth method tại custom path
-
-```bash
-# Enable userpass auth method tại custom path my-userpass
-vault auth enable -path=my-userpass userpass
-
-# Xác nhận xuất hiện trong danh sách với prefix auth/my-userpass/
-vault auth list
-
-# Tạo user alice với password và policy
-vault write auth/my-userpass/users/alice \
-  password=password123 \
-  policies=default
-
-# Login với alice qua custom path
-vault login -method=userpass -path=my-userpass username=alice password=password123
-```
-
-Lưu ý `-path=my-userpass` trong lệnh `vault login`: bạn phải chỉ định đúng path của auth method vì Vault cần biết forward request tới mount nào. Nếu bỏ `-path`, Vault sẽ mặc định dùng `userpass/` và báo lỗi vì mount đó không tồn tại.
 
 ## Kiểm tra lại
 

@@ -1,73 +1,172 @@
 ---
-title: Kiến Trúc Vault và Path-based Routing
-estMinutes: 20
+title: Vault Init và Unseal bằng Key Shards
+estMinutes: 25
 ---
 
-# Kiến Trúc Vault và Path-based Routing
+# Vault Init và Unseal bằng Key Shards
 
 ## Mục tiêu
 
-Sau khi hoàn thành bài thực hành, bạn sẽ biết cách khám phá kiến trúc vận hành của Vault thông qua CLI: xem các mount đang hoạt động, enable secrets engine và auth method tại custom path, tương tác với System Backend qua `sys/`, và quan sát hành vi khi cố gắng mount vào reserved path.
+Bạn sẽ trải nghiệm trực tiếp quy trình khởi tạo và unseal một Vault
+production server: từ trạng thái `uninitialized + sealed`, thực hiện
+`vault operator init` để nhận unseal keys, sau đó unseal từng bước bằng
+Shamir key shares. Đây là quy trình mà dev mode đã làm tự động — bài này
+làm nó bằng tay.
 
 ## Yêu cầu
 
-- Bạn đang làm việc bên trong Codespace của repo này, nên Vault dev server đã được khởi động sẵn ở `http://127.0.0.1:8200` với root token là `root`.
-- Bạn đã đọc bài lý thuyết tương ứng trong `site/docs/02-vault-architecture/02-vault-architecture-and-path/theory.mdx`.
+- Bạn đang làm việc trong Codespace của repo này.
+- Vault dev server đang chạy ở port `8200` — bài này sẽ dùng **port 8202**
+  để tránh xung đột.
+- Bạn đã đọc bài lý thuyết "Vault Initialization" và "Unseal Vault bằng Key Shards".
 
 ## Nhiệm vụ của bạn
 
-### Bước 1: Kiểm tra Vault và xem các mount paths hiện tại
+### Bước 1 — Tạo cấu hình Vault production server
 
-Bắt đầu bằng việc xác nhận Vault đang chạy và xem trạng thái ban đầu của các mount:
+Tạo thư mục và file cấu hình cho Vault server mới:
 
 ```bash
-export VAULT_ADDR='http://127.0.0.1:8200'
-export VAULT_TOKEN='root'
+mkdir -p /tmp/vault-lab/data
+
+cat > /tmp/vault-lab/config.hcl <<EOF
+storage "file" {
+  path = "/tmp/vault-lab/data"
+}
+
+listener "tcp" {
+  address     = "127.0.0.1:8202"
+  tls_disable = true
+}
+
+disable_mlock = true
+EOF
 ```
 
-Sau đó kiểm tra trạng thái Vault, liệt kê tất cả secrets engines đang mount, và liệt kê tất cả auth methods đang enable.
+### Bước 2 — Khởi động Vault server production mode
 
-Hãy chú ý các path nào xuất hiện mặc định trong dev mode và path nào là reserved.
+```bash
+nohup vault server -config=/tmp/vault-lab/config.hcl >/tmp/vault-lab/server.log 2>&1 &
+sleep 2
+```
 
-### Bước 2: Enable secrets engine tại custom path
+Trỏ VAULT_ADDR sang server mới:
 
-Enable KV secrets engine tại một path tùy chỉnh tên là `myapp` (không phải tên mặc định của engine). Sau đó xác nhận nó xuất hiện trong danh sách mount.
+```bash
+export VAULT_ADDR=http://127.0.0.1:8202
+```
 
-Tiếp theo, ghi một secret vào engine vừa mount qua path mới, với key `db_host` có giá trị `localhost`. Đọc lại secret đó để xác nhận routing hoạt động đúng.
+Kiểm tra trạng thái — Vault phải ở trạng thái `Initialized: false, Sealed: true`:
 
-Hãy suy nghĩ: tại sao bạn dùng path `myapp/config` chứ không phải `kv/config` trong bước này?
+```bash
+vault status
+```
 
-### Bước 3: Khám phá System Backend qua `sys/`
+### Bước 3 — Khởi tạo Vault (vault operator init)
 
-Đọc thông tin chi tiết về tất cả mount đang hoạt động thông qua System Backend. Bạn có thể dùng CLI hoặc gọi REST API trực tiếp.
+Thực hiện init với 3 key shares và threshold là 2 (cần 2/3 keys để unseal):
 
-Hãy xác nhận rằng `sys/` xuất hiện trong output và tìm hiểu thông tin nào được trả về về mỗi mount (type, options, v.v.).
+```bash
+vault operator init -key-shares=3 -key-threshold=2 -format=json > /tmp/vault-lab/init-output.json
+```
 
-### Bước 4: Thử mount vào reserved path
+Lưu init output ra file để dùng cho các bước tiếp theo. Xem nội dung:
 
-Thử enable một secrets engine KV tại path `cubbyhole` — đây là một reserved path. Quan sát lỗi mà Vault trả về.
+```bash
+cat /tmp/vault-lab/init-output.json | jq '{unseal_keys: .unseal_keys_b64, root_token: .root_token}'
+```
 
-Đây là bước quan sát, không phải bước cần "thành công". Lỗi là kết quả mong đợi.
+Ghi nhận: Vault tạo ra 3 unseal keys và 1 root token. **Trong production,
+phải lưu trữ các keys này an toàn và phân phối cho nhiều người khác nhau.**
 
-### Bước 5: Enable auth method tại custom path
+Kiểm tra trạng thái sau init — vẫn còn `Sealed: true`:
 
-Enable auth method `userpass` tại path tùy chỉnh tên là `my-userpass` (không phải path mặc định `userpass`).
+```bash
+vault status
+```
 
-Xác nhận auth method xuất hiện trong danh sách với path `auth/my-userpass/`.
+### Bước 4 — Unseal từng bước (Bước 1/2)
 
-Tạo một user tên `alice` với password `password123` và policy `default` trong auth method vừa enable. Sau đó thử login với user này qua custom path.
+Lấy unseal key thứ nhất từ file init output và nộp vào:
 
-> Gợi ý: hãy tự suy nghĩ trước khi mở `solution.md`. Nếu bí, đối chiếu với phần giải đáp.
+```bash
+UNSEAL_KEY_1=$(cat /tmp/vault-lab/init-output.json | jq -r '.unseal_keys_b64[0]')
+vault operator unseal "$UNSEAL_KEY_1"
+```
+
+Đọc output và chú ý dòng `Unseal Progress: 1/2`. Vault đã nhận 1 key nhưng
+chưa đủ threshold — vẫn còn `Sealed: true`.
+
+### Bước 5 — Unseal từng bước (Bước 2/2)
+
+Nộp unseal key thứ hai:
+
+```bash
+UNSEAL_KEY_2=$(cat /tmp/vault-lab/init-output.json | jq -r '.unseal_keys_b64[1]')
+vault operator unseal "$UNSEAL_KEY_2"
+```
+
+Sau khi nộp key thứ 2, Vault phải chuyển sang `Sealed: false`. Bạn vừa
+hoàn thành quá trình unseal — barrier đã nhận encryption key vào memory.
+
+### Bước 6 — Đăng nhập bằng initial root token
+
+```bash
+ROOT_TOKEN=$(cat /tmp/vault-lab/init-output.json | jq -r '.root_token')
+vault login "$ROOT_TOKEN"
+```
+
+Xác nhận login thành công và thấy `policies: [root]`.
+
+Thử một thao tác đơn giản để xác nhận Vault hoạt động sau unseal:
+
+```bash
+vault secrets list
+vault secrets enable kv
+vault kv put kv/test hello=world
+vault kv get kv/test
+```
+
+### Bước 7 — Seal và Unseal lại
+
+Seal Vault để xóa encryption key khỏi memory:
+
+```bash
+vault operator seal
+```
+
+Kiểm tra trạng thái — `Sealed: true`. Unseal progress về `0/2`.
+
+Unseal lại bằng key 1 và key 3 (thay vì key 1 và key 2 như lần trước —
+bất kỳ 2/3 keys đều hợp lệ):
+
+```bash
+UNSEAL_KEY_1=$(cat /tmp/vault-lab/init-output.json | jq -r '.unseal_keys_b64[0]')
+UNSEAL_KEY_3=$(cat /tmp/vault-lab/init-output.json | jq -r '.unseal_keys_b64[2]')
+vault operator unseal "$UNSEAL_KEY_1"
+vault operator unseal "$UNSEAL_KEY_3"
+```
+
+Xác nhận `Sealed: false` một lần nữa.
+
+> Gợi ý: nếu bí ở bất kỳ bước nào, hãy mở `solution.md` để đối chiếu.
 
 ## Tiêu chí thành công
-
-Chạy bộ kiểm tra:
 
 ```bash
 bash verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`
+
+## Dọn dẹp sau bài lab
+
+Sau khi hoàn thành, bạn có thể dọn dẹp:
+
+```bash
+pkill -f "vault server -config=/tmp/vault-lab" || true
+rm -rf /tmp/vault-lab
+```
 
 ## Cần đáp án?
 
