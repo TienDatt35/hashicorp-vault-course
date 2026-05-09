@@ -99,7 +99,7 @@ if [ -n "$TEAM_TOKEN" ]; then
   pass "Tạo token với policy team-a-readonly thành công"
 
   # Kiểm tra token có đúng policy
-  TOKEN_POLICIES=$(VAULT_TOKEN=root vault token lookup -field=policies "$TEAM_TOKEN" 2>/dev/null)
+  TOKEN_POLICIES=$(VAULT_TOKEN=root vault token lookup -format=json "$TEAM_TOKEN" 2>/dev/null | jq -r '.data.policies | join(" ")' 2>/dev/null)
   if echo "$TOKEN_POLICIES" | grep -q "team-a-readonly"; then
     pass "Token có policy team-a-readonly"
   else
