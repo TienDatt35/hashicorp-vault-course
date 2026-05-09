@@ -39,6 +39,7 @@ listener "tcp" {
   tls_disable = true
 }
 
+ui            = true
 disable_mlock = true
 EOF
 ```
