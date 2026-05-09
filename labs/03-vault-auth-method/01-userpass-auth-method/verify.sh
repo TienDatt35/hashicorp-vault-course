@@ -5,7 +5,8 @@
 #   pass "mô tả ngắn"   -> in dòng [PASS]
 #   fail "mô tả ngắn"   -> in dòng [FAIL] và tăng số lỗi
 #
-# Chạy bộ kiểm tra này SAU KHI hoàn thành bước 1-11 (trước bước 12 disable).
+# verify.sh có thể chạy bất kỳ lúc nào — kể cả sau khi disable userpass.
+# Script tự đảm bảo trạng thái cần thiết trước khi kiểm tra.
 # Exit code 0 chỉ khi mọi kiểm tra đều đạt.
 
 set -uo pipefail
@@ -31,6 +32,12 @@ else
   echo "  nohup vault server -dev -dev-root-token-id=root >/tmp/vault.log 2>&1 &"
   exit 1
 fi
+
+# --- Setup: đảm bảo userpass và alice tồn tại để kiểm tra -------------------
+# (idempotent — không ảnh hưởng nếu đã có sẵn)
+VAULT_TOKEN=root vault auth enable userpass >/dev/null 2>&1 || true
+VAULT_TOKEN=root vault write auth/userpass/users/alice \
+  password=vault123 policies=default >/dev/null 2>&1 || true
 
 # --- Kiểm tra 1: token auth method có sẵn (bước 1) -------------------------
 if vault auth list -format=json 2>/dev/null | grep -q '"token/"'; then
