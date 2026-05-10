@@ -119,9 +119,9 @@ else
 fi
 
 # --- Kiểm tra 13: Entity alice-entity có metadata team (Bước 4) --------------
-ENTITY_METADATA=$(vault read -format=json identity/entity/name/alice-entity 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('metadata',{}).get('team',''))" 2>/dev/null || echo "")
+ENTITY_METADATA=$(vault read -format=json identity/entity/name/alice-entity 2>/dev/null | jq -r '.data.metadata.team // ""' 2>/dev/null || echo "")
 if [ -n "$ENTITY_METADATA" ]; then
-  pass "Entity 'alice-entity' có metadata 'team' được gán"
+  pass "Entity 'alice-entity' có metadata 'team' được gán (giá trị: $ENTITY_METADATA)"
 else
   fail "Entity 'alice-entity' chưa có metadata 'team' — chạy: vault write identity/entity/name/alice-entity metadata=team=platform"
 fi

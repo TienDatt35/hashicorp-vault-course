@@ -84,10 +84,11 @@ vault auth enable userpass
 # 4.2: Tạo user alice
 vault write auth/userpass/users/alice password=training
 
-# 4.3: Tạo entity với metadata
-vault write identity/entity \
-  name=alice-entity \
-  metadata=team=platform
+# 4.3: Tạo entity, sau đó gán metadata qua endpoint /name/:name
+# (vault write identity/entity không nhận metadata dạng map qua CLI)
+vault write identity/entity name=alice-entity
+
+vault write identity/entity/name/alice-entity metadata=team=platform
 
 # Lưu entity ID để dùng ở bước sau
 ENTITY_ID=$(vault read -field=id identity/entity/name/alice-entity)
