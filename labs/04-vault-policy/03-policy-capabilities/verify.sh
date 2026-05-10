@@ -132,6 +132,50 @@ else
   fail "'vault policy list' không có 'webapp-deny-secret'"
 fi
 
+# --- Kiểm tra 16: Policy manage-auth-no-sudo tồn tại (Bước 6A) ---------------
+if vault policy read manage-auth-no-sudo >/dev/null 2>&1; then
+  pass "Policy 'manage-auth-no-sudo' tồn tại"
+else
+  fail "Policy 'manage-auth-no-sudo' chưa được tạo — xem solution.md Bước 6"
+fi
+
+# --- Kiểm tra 17: manage-auth-no-sudo chứa sys/auth path (Bước 6A) ----------
+NO_SUDO_CONTENT=$(vault policy read manage-auth-no-sudo 2>/dev/null || echo "")
+if echo "$NO_SUDO_CONTENT" | grep -q 'sys/auth'; then
+  pass "Policy 'manage-auth-no-sudo' chứa path 'sys/auth/*'"
+else
+  fail "Policy 'manage-auth-no-sudo' không có path 'sys/auth/*'"
+fi
+
+# --- Kiểm tra 18: manage-auth-no-sudo KHÔNG chứa sudo (Bước 6A) -------------
+if echo "$NO_SUDO_CONTENT" | grep -q '"sudo"'; then
+  fail "Policy 'manage-auth-no-sudo' không được chứa 'sudo' — mục đích là demo trường hợp thiếu sudo"
+else
+  pass "Policy 'manage-auth-no-sudo' đúng: không có capability 'sudo'"
+fi
+
+# --- Kiểm tra 19: Policy manage-auth-with-sudo tồn tại (Bước 6B) -------------
+if vault policy read manage-auth-with-sudo >/dev/null 2>&1; then
+  pass "Policy 'manage-auth-with-sudo' tồn tại"
+else
+  fail "Policy 'manage-auth-with-sudo' chưa được tạo — xem solution.md Bước 6"
+fi
+
+# --- Kiểm tra 20: manage-auth-with-sudo chứa sys/auth path (Bước 6B) --------
+SUDO_CONTENT=$(vault policy read manage-auth-with-sudo 2>/dev/null || echo "")
+if echo "$SUDO_CONTENT" | grep -q 'sys/auth'; then
+  pass "Policy 'manage-auth-with-sudo' chứa path 'sys/auth/*'"
+else
+  fail "Policy 'manage-auth-with-sudo' không có path 'sys/auth/*'"
+fi
+
+# --- Kiểm tra 21: manage-auth-with-sudo chứa sudo (Bước 6B) -----------------
+if echo "$SUDO_CONTENT" | grep -q '"sudo"'; then
+  pass "Policy 'manage-auth-with-sudo' có capability 'sudo'"
+else
+  fail "Policy 'manage-auth-with-sudo' thiếu capability 'sudo' — cần thêm \"sudo\" vào danh sách capabilities"
+fi
+
 echo
 if [ "$failures" -eq 0 ]; then
   echo "Tất cả kiểm tra đều đạt."

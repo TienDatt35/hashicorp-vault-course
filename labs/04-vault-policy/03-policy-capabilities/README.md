@@ -67,6 +67,48 @@ So sánh output của hai lệnh và giải thích sự khác biệt.
 
 > Gợi ý: hãy tự suy nghĩ trước khi mở `solution.md`. Nếu bí, đối chiếu với phần giải đáp.
 
+### Bước 6: Dùng `sudo` để truy cập root-protected path
+
+Vault bảo vệ một số path đặc biệt bằng cơ chế "root-protected": ngay cả khi token có đủ `create` và `update`, nếu thiếu capability `sudo` thì vẫn bị từ chối. Một ví dụ điển hình là `sys/auth/*` — path dùng để bật/tắt auth method.
+
+**Phần A — Không có `sudo`:**
+
+Tạo file policy `manage-auth-no-sudo.hcl` với nội dung sau (không thêm `sudo`):
+
+```hcl
+path "sys/auth/*" {
+  capabilities = ["create", "update", "delete", "read"]
+}
+```
+
+Tạo policy `manage-auth-no-sudo` từ file đó, rồi tạo một token test được gắn policy này. Dùng token đó thử bật auth method `userpass`:
+
+```bash
+VAULT_TOKEN=<token_test> vault auth enable userpass
+```
+
+Quan sát kết quả và lý giải tại sao bị từ chối dù đã có `create`.
+
+**Phần B — Thêm `sudo`:**
+
+Tạo file policy `manage-auth-with-sudo.hcl` — giữ nguyên rule trên nhưng thêm `"sudo"` vào danh sách capabilities:
+
+```hcl
+path "sys/auth/*" {
+  capabilities = ["create", "update", "delete", "read", "sudo"]
+}
+```
+
+Tạo policy `manage-auth-with-sudo`, rồi tạo token test mới với policy này. Thử lại lệnh `vault auth enable userpass` với token mới — xác nhận lần này thành công.
+
+Sau khi xác nhận, dọn dẹp bằng cách tắt auth method (dùng root token):
+
+```bash
+VAULT_TOKEN=root vault auth disable userpass
+```
+
+> `sudo` không thay thế các capability CRUD — nó là điều kiện bổ sung bắt buộc đối với root-protected path. Thiếu `sudo` thì `create`/`update` cũng vô tác dụng trên những path này.
+
 ## Tiêu chí thành công
 
 Chạy bộ kiểm tra:
