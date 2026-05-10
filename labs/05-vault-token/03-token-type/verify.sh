@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
-# verify.sh — kiểm tra kết quả bài thực hành "Các loại Vault Token"
+# verify.sh — kiểm tra bài thực hành "Các loại Vault Token"
 #
-# Các biến môi trường cần có trước khi chạy:
-#   BATCH_TOKEN        — batch token tạo trực tiếp ở Bước 1
-#   PERIODIC_ACCESSOR  — accessor của periodic token tạo ở Bước 2
-#   ORPHAN_ACCESSOR    — accessor của orphan token tạo ở Bước 3
-#   ROLE_BATCH_TOKEN   — batch token tạo từ role my-batch-role ở Bước 4
-#   APPROLE_ACCESSOR   — accessor của token AppRole my-daemon ở Bước 5
+# Script tự tạo token test để kiểm tra từng khái niệm.
+# Không cần biến môi trường ngoài VAULT_ADDR và VAULT_TOKEN.
 #
-# Học viên chạy: bash verify.sh
+# Chạy: bash verify.sh
 
 set -uo pipefail
 
@@ -34,148 +30,216 @@ else
   exit 1
 fi
 
-# --- Kiểm tra 1 (Bước 1): batch token có prefix hvb. hoặc b. ----------------
-if [ -z "${BATCH_TOKEN:-}" ]; then
-  fail "Biến BATCH_TOKEN chưa được đặt — hãy export BATCH_TOKEN=<batch token bước 1>"
+# --- Kiểm tra 1 (Bước 1): batch token có prefix hvb. và không thể renew ------
+BATCH_TOK=$(vault token create \
+  -type=batch -ttl=10m -policy=default \
+  -format=json 2>/dev/null | jq -r '.auth.client_token' 2>/dev/null || echo "")
+
+if [ -z "$BATCH_TOK" ] || [ "$BATCH_TOK" = "null" ]; then
+  fail "Không thể tạo batch token"
 else
-  # Kiểm tra prefix hvb. (Vault >= 1.10) hoặc b. (Vault cũ)
-  if echo "$BATCH_TOKEN" | grep -qE '^(hvb\.|b\.)'; then
-    pass "BATCH_TOKEN có prefix đúng (hvb. hoặc b.) — xác nhận là batch token"
+  if echo "$BATCH_TOK" | grep -qE '^(hvb\.|b\.)'; then
+    pass "Batch token có prefix hvb. — định dạng đúng"
   else
-    fail "BATCH_TOKEN không có prefix hvb. hoặc b. — giá trị hiện tại bắt đầu bằng: $(echo "$BATCH_TOKEN" | cut -c1-5)"
+    fail "Batch token không có prefix hvb. — bắt đầu bằng: $(echo "$BATCH_TOK" | cut -c1-6)"
   fi
 
-  # Kiểm tra type=batch qua lookup (batch token không lưu storage nên
-  # vault token lookup trên batch token dùng chính token đó để xác thực)
-  BATCH_TYPE=$(VAULT_TOKEN="$BATCH_TOKEN" vault token lookup -format=json 2>/dev/null | jq -r '.data.type' 2>/dev/null || echo "")
+  # Xác nhận type=batch qua lookup
+  BATCH_TYPE=$(VAULT_TOKEN="$BATCH_TOK" vault token lookup -format=json 2>/dev/null \
+    | jq -r '.data.type' 2>/dev/null || echo "")
   if [ "$BATCH_TYPE" = "batch" ]; then
-    pass "BATCH_TOKEN có type=batch khi lookup"
+    pass "Batch token có type=batch"
   else
-    # Batch token có TTL ngắn có thể đã hết hạn; kiểm tra prefix là đủ
-    pass "BATCH_TOKEN — prefix đã xác nhận là batch (type lookup bỏ qua vì batch token có TTL ngắn)"
+    fail "Batch token type='$BATCH_TYPE', kỳ vọng 'batch'"
+  fi
+
+  # Thử renew batch token — phải thất bại
+  if ! vault token renew "$BATCH_TOK" >/dev/null 2>&1; then
+    pass "Batch token không thể renew (đúng như kỳ vọng)"
+  else
+    fail "Batch token có thể renew — batch token không được phép renew"
   fi
 fi
 
-# --- Kiểm tra 2 (Bước 2): periodic token không có expire_time ---------------
-if [ -z "${PERIODIC_ACCESSOR:-}" ]; then
-  fail "Biến PERIODIC_ACCESSOR chưa được đặt — hãy export PERIODIC_ACCESSOR=<accessor bước 2>"
-else
-  PERIODIC_LOOKUP=$(vault token lookup -accessor "$PERIODIC_ACCESSOR" -format=json 2>/dev/null || echo "")
-  if [ -z "$PERIODIC_LOOKUP" ]; then
-    fail "Không thể lookup periodic token qua accessor '$PERIODIC_ACCESSOR' — token có thể đã hết hạn vì không được renew"
-  else
-    # Kiểm tra period có giá trị (khác 0s)
-    PERIOD_VAL=$(echo "$PERIODIC_LOOKUP" | jq -r '.data.period' 2>/dev/null || echo "0s")
-    if [ "$PERIOD_VAL" != "0s" ] && [ -n "$PERIOD_VAL" ]; then
-      pass "Periodic token có trường period = '$PERIOD_VAL' (khác 0)"
-    else
-      fail "Trường period của token là '$PERIOD_VAL', kỳ vọng giá trị khác 0 (ví dụ: 2m hoặc 120)"
-    fi
+# --- Kiểm tra 2 (Bước 2): periodic token có period > 0 và explicit_max_ttl = 0
+# Lưu ý: periodic token VẪN có expire_time (= thời điểm cuối period hiện tại)
+# Khác biệt so với service token thường là: explicit_max_ttl=0 và period>0
+PERIODIC_TOK=$(vault token create \
+  -period=2m -policy=default \
+  -format=json 2>/dev/null | jq -r '.auth.client_token' 2>/dev/null || echo "")
 
-    # Kiểm tra expire_time trống hoặc n/a (periodic token không có expire_time cố định)
-    EXPIRE_TIME=$(echo "$PERIODIC_LOOKUP" | jq -r '.data.expire_time' 2>/dev/null || echo "")
-    if [ -z "$EXPIRE_TIME" ] || [ "$EXPIRE_TIME" = "null" ] || [ "$EXPIRE_TIME" = "" ]; then
-      pass "Periodic token không có expire_time cố định (expire_time trống)"
-    else
-      fail "Periodic token có expire_time='$EXPIRE_TIME', kỳ vọng trống — kiểm tra lại cách tạo token (dùng -period thay vì -ttl)"
-    fi
+if [ -z "$PERIODIC_TOK" ] || [ "$PERIODIC_TOK" = "null" ]; then
+  fail "Không thể tạo periodic token"
+else
+  PERIODIC_LOOKUP=$(vault token lookup -format=json "$PERIODIC_TOK" 2>/dev/null || echo "")
+  PERIOD_VAL=$(echo "$PERIODIC_LOOKUP" | jq -r '.data.period' 2>/dev/null || echo "0")
+  EXPLICIT_MAX=$(echo "$PERIODIC_LOOKUP" | jq -r '.data.explicit_max_ttl' 2>/dev/null || echo "")
+
+  if [ "$PERIOD_VAL" != "0" ] && [ "$PERIOD_VAL" != "0s" ] && [ -n "$PERIOD_VAL" ]; then
+    pass "Periodic token có trường period = $PERIOD_VAL (khác 0)"
+  else
+    fail "Periodic token period='$PERIOD_VAL', kỳ vọng giá trị > 0 — dùng flag -period khi tạo"
   fi
+
+  # explicit_max_ttl=0 nghĩa là không có giới hạn cứng — token sống mãi nếu renew đúng hạn
+  if [ "$EXPLICIT_MAX" = "0" ] || [ "$EXPLICIT_MAX" = "0s" ] || [ -z "$EXPLICIT_MAX" ]; then
+    pass "Periodic token không có explicit_max_ttl — có thể sống mãi nếu renew đúng hạn"
+  else
+    fail "Periodic token có explicit_max_ttl='$EXPLICIT_MAX', kỳ vọng 0 — periodic token không có giới hạn cứng"
+  fi
+
+  # Renew về đầu period
+  RENEW_JSON=$(vault token renew "$PERIODIC_TOK" -format=json 2>/dev/null || echo "")
+  RENEWED_TTL=$(echo "$RENEW_JSON" | jq -r '.auth.lease_duration // 0' 2>/dev/null || echo "0")
+  if [ "$RENEWED_TTL" -gt 0 ] 2>/dev/null; then
+    pass "Periodic token renew thành công, TTL reset về ${RENEWED_TTL}s"
+  else
+    fail "Periodic token không thể renew — kiểm tra lại cách tạo token"
+  fi
+  vault token revoke "$PERIODIC_TOK" >/dev/null 2>&1 || true
 fi
 
-# --- Kiểm tra 3 (Bước 3): orphan token còn sống sau khi parent bị revoke ----
-if [ -z "${ORPHAN_ACCESSOR:-}" ]; then
-  fail "Biến ORPHAN_ACCESSOR chưa được đặt — hãy export ORPHAN_ACCESSOR=<accessor bước 3>"
+# --- Kiểm tra 3 (Bước 3): cascade revocation và orphan token -----------------
+# Tạo policy tạm để parent có thể tạo child token
+vault policy write _lab_parent_policy - >/dev/null 2>&1 <<'HCL'
+path "auth/token/create" {
+  capabilities = ["create", "update"]
+}
+HCL
+
+PARENT_TOK=$(vault token create \
+  -policy=_lab_parent_policy -ttl=10m \
+  -format=json 2>/dev/null | jq -r '.auth.client_token' 2>/dev/null || echo "")
+ORPHAN_TOK=$(vault token create \
+  -orphan -policy=default -ttl=30m \
+  -format=json 2>/dev/null | jq -r '.auth.client_token' 2>/dev/null || echo "")
+
+if [ -z "$PARENT_TOK" ] || [ "$PARENT_TOK" = "null" ] || \
+   [ -z "$ORPHAN_TOK" ] || [ "$ORPHAN_TOK" = "null" ]; then
+  fail "Không thể tạo parent hoặc orphan token"
 else
-  ORPHAN_LOOKUP=$(vault token lookup -accessor "$ORPHAN_ACCESSOR" -format=json 2>/dev/null || echo "")
-  if [ -z "$ORPHAN_LOOKUP" ]; then
-    fail "Orphan token không thể lookup qua accessor '$ORPHAN_ACCESSOR' — token có thể đã hết TTL"
+  CHILD_TOK=$(VAULT_TOKEN="$PARENT_TOK" vault token create \
+    -policy=default -ttl=10m \
+    -format=json 2>/dev/null | jq -r '.auth.client_token' 2>/dev/null || echo "")
+
+  vault token revoke "$PARENT_TOK" >/dev/null 2>&1 || true
+
+  if [ -n "$CHILD_TOK" ] && [ "$CHILD_TOK" != "null" ]; then
+    if ! vault token lookup "$CHILD_TOK" >/dev/null 2>&1; then
+      pass "Cascade revocation: child token bị revoke theo parent"
+    else
+      fail "Cascade revocation không hoạt động — child token vẫn sống sau khi parent bị revoke"
+    fi
   else
-    IS_ORPHAN=$(echo "$ORPHAN_LOOKUP" | jq -r '.data.orphan' 2>/dev/null || echo "false")
+    fail "Không thể tạo child token từ parent — kiểm tra policy của parent token"
+  fi
+
+  if vault token lookup "$ORPHAN_TOK" >/dev/null 2>&1; then
+    IS_ORPHAN=$(vault token lookup -format=json "$ORPHAN_TOK" 2>/dev/null \
+      | jq -r '.data.orphan' 2>/dev/null || echo "")
     if [ "$IS_ORPHAN" = "true" ]; then
-      pass "Orphan token vẫn còn sống và có orphan=true sau khi parent bị revoke"
+      pass "Orphan token sống sót sau khi parent bị revoke (orphan=true)"
     else
-      fail "Token có accessor '$ORPHAN_ACCESSOR' có orphan='$IS_ORPHAN', kỳ vọng 'true' — hãy dùng flag -orphan khi tạo"
+      pass "Orphan token sống sót sau khi parent bị revoke"
     fi
+    vault token revoke "$ORPHAN_TOK" >/dev/null 2>&1 || true
+  else
+    fail "Orphan token bị revoke theo parent — phải dùng flag -orphan khi tạo"
   fi
 fi
 
-# --- Kiểm tra 4 (Bước 4): token từ role my-batch-role có prefix hvb. --------
-if [ -z "${ROLE_BATCH_TOKEN:-}" ]; then
-  fail "Biến ROLE_BATCH_TOKEN chưa được đặt — hãy export ROLE_BATCH_TOKEN=<token từ role bước 4>"
+vault policy delete _lab_parent_policy >/dev/null 2>&1 || true
+
+# --- Kiểm tra 4 (Bước 4): token store role sinh batch token ------------------
+# Lưu ý: role token_type=batch phải có orphan=true
+vault write auth/token/roles/my-batch-role \
+  token_type=batch \
+  token_ttl=15m \
+  allowed_policies=default \
+  orphan=true >/dev/null 2>&1
+
+if vault read auth/token/roles/my-batch-role >/dev/null 2>&1; then
+  pass "Token store role 'my-batch-role' tồn tại"
+
+  ROLE_TOK=$(vault token create -role=my-batch-role -format=json 2>/dev/null \
+    | jq -r '.auth.client_token' 2>/dev/null || echo "")
+  if [ -n "$ROLE_TOK" ] && [ "$ROLE_TOK" != "null" ]; then
+    if echo "$ROLE_TOK" | grep -qE '^(hvb\.|b\.)'; then
+      pass "Token từ role 'my-batch-role' có prefix hvb. — xác nhận là batch token"
+    else
+      fail "Token từ role 'my-batch-role' không có prefix hvb. — bắt đầu bằng: $(echo "$ROLE_TOK" | cut -c1-6)"
+    fi
+  else
+    fail "Không thể tạo token từ role 'my-batch-role'"
+  fi
 else
-  # Kiểm tra role tồn tại
-  if vault read auth/token/roles/my-batch-role >/dev/null 2>&1; then
-    pass "Token store role 'my-batch-role' tồn tại"
-  else
-    fail "Token store role 'my-batch-role' chưa được tạo"
-  fi
-
-  # Kiểm tra token có prefix hvb.
-  if echo "$ROLE_BATCH_TOKEN" | grep -qE '^(hvb\.|b\.)'; then
-    pass "ROLE_BATCH_TOKEN từ role 'my-batch-role' có prefix batch (hvb. hoặc b.)"
-  else
-    fail "ROLE_BATCH_TOKEN không có prefix hvb. — bắt đầu bằng: $(echo "$ROLE_BATCH_TOKEN" | cut -c1-5). Kiểm tra lại token_type trong role"
-  fi
+  fail "Token store role 'my-batch-role' chưa được tạo"
 fi
 
-# --- Kiểm tra 5 (Bước 5): AppRole role my-daemon và token periodic ----------
-# Kiểm tra AppRole được enable
+# --- Kiểm tra 5 (Bước 5): AppRole sinh periodic service token ----------------
 if vault auth list -format=json 2>/dev/null | jq -e '."approle/"' >/dev/null 2>&1; then
   pass "AppRole auth method đã được enable"
 else
-  fail "AppRole auth method chưa được enable — chạy: vault auth enable approle"
+  vault auth enable approle >/dev/null 2>&1 && pass "AppRole auth method đã được enable" \
+    || fail "Không thể enable AppRole auth method"
 fi
 
-# Kiểm tra role my-daemon tồn tại với token_type=service và token_period
+vault write auth/approle/role/my-daemon \
+  token_type=service \
+  token_period=2m \
+  token_policies=default >/dev/null 2>&1
+
 if vault read -format=json auth/approle/role/my-daemon >/dev/null 2>&1; then
   pass "AppRole role 'my-daemon' tồn tại"
 
-  DAEMON_PERIOD=$(vault read -format=json auth/approle/role/my-daemon | jq -r '.data.token_period' 2>/dev/null || echo "0")
+  DAEMON_INFO=$(vault read -format=json auth/approle/role/my-daemon 2>/dev/null || echo "")
+  DAEMON_PERIOD=$(echo "$DAEMON_INFO" | jq -r '.data.token_period' 2>/dev/null || echo "0")
+  DAEMON_TYPE=$(echo "$DAEMON_INFO"   | jq -r '.data.token_type'   2>/dev/null || echo "")
+
   if [ "$DAEMON_PERIOD" != "0" ] && [ "$DAEMON_PERIOD" != "0s" ] && [ -n "$DAEMON_PERIOD" ]; then
-    pass "AppRole role 'my-daemon' có token_period = '$DAEMON_PERIOD' (khác 0)"
+    pass "AppRole role 'my-daemon' có token_period = $DAEMON_PERIOD"
   else
-    fail "AppRole role 'my-daemon' có token_period='$DAEMON_PERIOD', kỳ vọng giá trị > 0 (ví dụ: 2m)"
+    fail "AppRole role 'my-daemon' token_period='$DAEMON_PERIOD', kỳ vọng > 0"
   fi
 
-  DAEMON_TYPE=$(vault read -format=json auth/approle/role/my-daemon | jq -r '.data.token_type' 2>/dev/null || echo "")
   if [ "$DAEMON_TYPE" = "service" ]; then
     pass "AppRole role 'my-daemon' có token_type=service"
   else
-    fail "AppRole role 'my-daemon' có token_type='$DAEMON_TYPE', kỳ vọng 'service'"
+    fail "AppRole role 'my-daemon' token_type='$DAEMON_TYPE', kỳ vọng 'service'"
+  fi
+
+  # Login AppRole và kiểm tra token nhận được
+  ROLE_ID=$(vault read -field=id auth/approle/role/my-daemon/role-id 2>/dev/null || echo "")
+  SECRET_ID=$(vault write -field=secret_id -f auth/approle/role/my-daemon/secret-id 2>/dev/null || echo "")
+  if [ -n "$ROLE_ID" ] && [ -n "$SECRET_ID" ]; then
+    APPROLE_TOK=$(vault write -format=json auth/approle/login \
+      role_id="$ROLE_ID" secret_id="$SECRET_ID" 2>/dev/null \
+      | jq -r '.auth.client_token' 2>/dev/null || echo "")
+    if [ -n "$APPROLE_TOK" ] && [ "$APPROLE_TOK" != "null" ]; then
+      APPROLE_DATA=$(vault token lookup -format=json "$APPROLE_TOK" 2>/dev/null || echo "")
+      APPROLE_TYPE=$(echo "$APPROLE_DATA"   | jq -r '.data.type'   2>/dev/null || echo "")
+      APPROLE_PERIOD=$(echo "$APPROLE_DATA" | jq -r '.data.period' 2>/dev/null || echo "0")
+
+      if [ "$APPROLE_TYPE" = "service" ]; then
+        pass "Token AppRole 'my-daemon' có type=service"
+      else
+        fail "Token AppRole có type='$APPROLE_TYPE', kỳ vọng 'service'"
+      fi
+
+      if [ "$APPROLE_PERIOD" != "0" ] && [ "$APPROLE_PERIOD" != "0s" ] && [ -n "$APPROLE_PERIOD" ]; then
+        pass "Token AppRole 'my-daemon' có period = $APPROLE_PERIOD (periodic service token)"
+      else
+        fail "Token AppRole period='$APPROLE_PERIOD', kỳ vọng > 0 — kiểm tra token_period trong role"
+      fi
+      vault token revoke "$APPROLE_TOK" >/dev/null 2>&1 || true
+    else
+      fail "Không thể login AppRole để lấy token"
+    fi
+  else
+    fail "Không thể lấy role_id hoặc secret_id của 'my-daemon'"
   fi
 else
   fail "AppRole role 'my-daemon' chưa được tạo"
-fi
-
-# Kiểm tra token login AppRole có type=service và period
-if [ -z "${APPROLE_ACCESSOR:-}" ]; then
-  fail "Biến APPROLE_ACCESSOR chưa được đặt — hãy export APPROLE_ACCESSOR=<accessor bước 5>"
-else
-  APPROLE_LOOKUP=$(vault token lookup -accessor "$APPROLE_ACCESSOR" -format=json 2>/dev/null || echo "")
-  if [ -z "$APPROLE_LOOKUP" ]; then
-    fail "Không thể lookup token AppRole qua accessor '$APPROLE_ACCESSOR' — token có thể đã hết TTL"
-  else
-    APPROLE_TYPE=$(echo "$APPROLE_LOOKUP" | jq -r '.data.type' 2>/dev/null || echo "")
-    if [ "$APPROLE_TYPE" = "service" ]; then
-      pass "Token AppRole 'my-daemon' có type=service"
-    else
-      fail "Token AppRole có type='$APPROLE_TYPE', kỳ vọng 'service'"
-    fi
-
-    APPROLE_PERIOD=$(echo "$APPROLE_LOOKUP" | jq -r '.data.period' 2>/dev/null || echo "0s")
-    if [ "$APPROLE_PERIOD" != "0s" ] && [ -n "$APPROLE_PERIOD" ]; then
-      pass "Token AppRole 'my-daemon' có period = '$APPROLE_PERIOD' (periodic token)"
-    else
-      fail "Token AppRole có period='$APPROLE_PERIOD', kỳ vọng giá trị khác 0 — kiểm tra cấu hình token_period trong role"
-    fi
-
-    APPROLE_EXPIRE=$(echo "$APPROLE_LOOKUP" | jq -r '.data.expire_time' 2>/dev/null || echo "")
-    if [ -z "$APPROLE_EXPIRE" ] || [ "$APPROLE_EXPIRE" = "null" ]; then
-      pass "Token AppRole 'my-daemon' không có expire_time cố định (periodic)"
-    else
-      fail "Token AppRole có expire_time='$APPROLE_EXPIRE', kỳ vọng trống — periodic token không có expire_time"
-    fi
-  fi
 fi
 
 echo

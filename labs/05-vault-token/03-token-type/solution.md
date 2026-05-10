@@ -41,8 +41,11 @@ PERIODIC_TOKEN=$(vault token create -period=2m -policy=default -format=json | jq
 PERIODIC_ACCESSOR=$(vault token lookup -format=json "$PERIODIC_TOKEN" | jq -r '.data.accessor')
 echo "Periodic accessor: $PERIODIC_ACCESSOR"
 
-# Kiểm tra expire_time (phải trống hoặc n/a) và period (phải là 2m)
-vault token lookup -format=json "$PERIODIC_TOKEN" | jq '.data | {period, expire_time, ttl}'
+# Kiểm tra period (phải là 120s = 2m) và explicit_max_ttl (phải là 0)
+# Lưu ý: expire_time KHÔNG phải null — nó là thời điểm cuối period hiện tại.
+# Điểm khác biệt của periodic token là explicit_max_ttl=0 và period>0,
+# nghĩa là token sống mãi miễn là được renew trong mỗi period.
+vault token lookup -format=json "$PERIODIC_TOKEN" | jq '.data | {period, explicit_max_ttl, ttl}'
 
 # Chờ khoảng 30 giây rồi renew
 sleep 30
@@ -57,8 +60,15 @@ export PERIODIC_ACCESSOR
 ### Bước 3 — Cascade revocation và orphan token
 
 ```bash
-# Tạo parent token
-PARENT_TOKEN=$(vault token create -policy=default -ttl=10m -format=json | jq -r '.auth.client_token')
+# Tạo policy cho parent token — default policy không có quyền auth/token/create
+vault policy write parent-policy - <<'EOF'
+path "auth/token/create" {
+  capabilities = ["create", "update"]
+}
+EOF
+
+# Tạo parent token với policy có quyền tạo child
+PARENT_TOKEN=$(vault token create -policy=parent-policy -ttl=10m -format=json | jq -r '.auth.client_token')
 echo "Parent token: $PARENT_TOKEN"
 
 # Tạo child token từ parent token
@@ -88,10 +98,13 @@ export ORPHAN_ACCESSOR
 
 ```bash
 # Tạo token store role
+# Lưu ý: token_type=batch yêu cầu orphan=true — Vault không cho phép tạo
+# child batch token (batch token không lưu trong storage nên không thể có parent)
 vault write auth/token/roles/my-batch-role \
   token_type=batch \
   token_ttl=15m \
-  allowed_policies=default
+  allowed_policies=default \
+  orphan=true
 
 # Tạo token từ role
 ROLE_BATCH_TOKEN=$(vault token create -role=my-batch-role -format=json | jq -r '.auth.client_token')
