@@ -149,7 +149,7 @@ Thứ tự gắn alias không quan trọng — bạn có thể gắn alias của
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

@@ -91,7 +91,7 @@ echo "Login thanh cong voi SecretID moi"
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.
