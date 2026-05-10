@@ -13,7 +13,7 @@ Bài này cho bạn thực hành trực tiếp với vòng đời token. Các kh
 
 - `display_name` và `meta` giúp phân biệt token trong audit log.
 - `explicit_max_ttl` là giới hạn cứng không thể vượt qua dù renew bao nhiêu lần.
-- `num_uses` đếm ngược mỗi API call kể cả lookup — token tự revoke khi hết use.
+- `num_uses` đếm ngược mỗi lần token đó được dùng làm auth token — phải dùng `VAULT_TOKEN=$token vault ...` chứ không phải `vault token lookup $token` (cái sau dùng root, không tiêu thụ use).
 - Cascade revocation: token con bị revoke theo cha; orphan token không bị ảnh hưởng.
 
 ## Các lệnh
@@ -62,19 +62,27 @@ USE_TOKEN=$(vault token create \
   -policy=default \
   -format=json | jq -r '.auth.client_token')
 
-# Dùng lần 1, 2, 3
-vault token lookup "$USE_TOKEN"
-vault token lookup "$USE_TOKEN"
-vault token lookup "$USE_TOKEN"
+# Dùng lần 1, 2, 3 — PHẢI dùng USE_TOKEN làm auth token để tiêu thụ use
+# (vault token lookup "$USE_TOKEN" dùng root làm auth → không tiêu thụ use của USE_TOKEN)
+VAULT_TOKEN=$USE_TOKEN vault token lookup
+VAULT_TOKEN=$USE_TOKEN vault token lookup
+VAULT_TOKEN=$USE_TOKEN vault token lookup
 
-# Lần 4 — token đã bị revoke tự động
-vault token lookup "$USE_TOKEN"
-# Kết quả dự kiến: Error looking up token: ... token not found
+# Lần 4 — token đã bị revoke tự động sau 3 lần dùng
+VAULT_TOKEN=$USE_TOKEN vault token lookup
+# Kết quả dự kiến: Error looking up token: ... permission denied / token not found
 
 # Bước 5 — Orphan token và cascade revocation
-# Tạo parent token
+# Tạo policy cho parent để parent có quyền tạo child token
+# (default policy không có quyền auth/token/create)
+vault policy write parent-policy - <<'EOF'
+path "auth/token/create" {
+  capabilities = ["create", "update"]
+}
+EOF
+
 PARENT_TOKEN=$(vault token create \
-  -policy=default \
+  -policy=parent-policy \
   -ttl=30m \
   -format=json | jq -r '.auth.client_token')
 
