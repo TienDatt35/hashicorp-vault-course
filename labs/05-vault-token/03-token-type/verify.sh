@@ -89,7 +89,7 @@ else
   fi
 
   # Renew về đầu period
-  RENEW_JSON=$(vault token renew "$PERIODIC_TOK" -format=json 2>/dev/null || echo "")
+  RENEW_JSON=$(vault token renew -format=json "$PERIODIC_TOK" 2>/dev/null || echo "")
   RENEWED_TTL=$(echo "$RENEW_JSON" | jq -r '.auth.lease_duration // 0' 2>/dev/null || echo "0")
   if [ "$RENEWED_TTL" -gt 0 ] 2>/dev/null; then
     pass "Periodic token renew thành công, TTL reset về ${RENEWED_TTL}s"
@@ -156,6 +156,7 @@ vault write auth/token/roles/my-batch-role \
   token_type=batch \
   token_ttl=15m \
   allowed_policies=default \
+  renewable=false \
   orphan=true >/dev/null 2>&1
 
 if vault read auth/token/roles/my-batch-role >/dev/null 2>&1; then
@@ -209,7 +210,7 @@ if vault read -format=json auth/approle/role/my-daemon >/dev/null 2>&1; then
   fi
 
   # Login AppRole và kiểm tra token nhận được
-  ROLE_ID=$(vault read -field=id auth/approle/role/my-daemon/role-id 2>/dev/null || echo "")
+  ROLE_ID=$(vault read -field=role_id auth/approle/role/my-daemon/role-id 2>/dev/null || echo "")
   SECRET_ID=$(vault write -field=secret_id -f auth/approle/role/my-daemon/secret-id 2>/dev/null || echo "")
   if [ -n "$ROLE_ID" ] && [ -n "$SECRET_ID" ]; then
     APPROLE_TOK=$(vault write -format=json auth/approle/login \
