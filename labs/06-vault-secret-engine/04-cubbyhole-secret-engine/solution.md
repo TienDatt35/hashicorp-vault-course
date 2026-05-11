@@ -31,7 +31,7 @@ Lệnh `vault write cubbyhole/...` ghi dữ liệu vào namespace cubbyhole củ
 ```bash
 # Tạo token mới với policy default, lưu vào biến
 NEW_TOKEN=$(vault token create -policy=default -format=json | \
-  python3 -c "import sys,json; print(json.load(sys.stdin)['auth']['client_token'])")
+  jq -r '.auth.client_token')
 
 echo "Token mới: $NEW_TOKEN"
 
@@ -52,7 +52,7 @@ vault kv put -mount=secret lab/db-password value="P@ssw0rd-lab-2024"
 
 # Đọc secret với wrap-ttl=120s để nhận wrapping token
 WRAP_TOKEN=$(vault read -wrap-ttl=120s -format=json secret/data/lab/db-password | \
-  python3 -c "import sys,json; print(json.load(sys.stdin)['wrap_info']['token'])")
+  jq -r '.wrap_info.token')
 
 echo "Wrapping token: $WRAP_TOKEN"
 ```
@@ -71,7 +71,7 @@ curl -s \
   -H "Content-Type: application/json" \
   -d "{\"token\": \"$WRAP_TOKEN\"}" \
   "$VAULT_ADDR/v1/sys/wrapping/lookup" | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print('creation_path:', d.get('data',{}).get('creation_path',''))"
+  jq -r '"creation_path: \(.data.creation_path)"'
 ```
 
 Kết quả mong đợi:
