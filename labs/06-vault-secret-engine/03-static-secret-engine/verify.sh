@@ -40,7 +40,7 @@ fi
 
 # Kiểm tra phiên bản là KV v2 (options.version = "2")
 kv_version=$(vault secrets list -format=json 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('secret/',{}).get('options',{}).get('version',''))" 2>/dev/null || echo "")
+  jq -r '."secret/".options.version // ""' 2>/dev/null || echo "")
 if [ "$kv_version" = "2" ]; then
   pass "Mount secret/ là KV v2"
 else
@@ -56,7 +56,7 @@ fi
 
 # Kiểm tra field username
 username_val=$(vault kv get -mount=secret -format=json training/creds 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('data',{}).get('username',''))" 2>/dev/null || echo "")
+  jq -r '.data.data.username // ""' 2>/dev/null || echo "")
 if [ -n "$username_val" ]; then
   pass "Field 'username' có giá trị trong training/creds"
 else
@@ -65,7 +65,7 @@ fi
 
 # Kiểm tra field password
 password_val=$(vault kv get -mount=secret -format=json training/creds 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('data',{}).get('password',''))" 2>/dev/null || echo "")
+  jq -r '.data.data.password // ""' 2>/dev/null || echo "")
 if [ -n "$password_val" ]; then
   pass "Field 'password' có giá trị trong training/creds"
 else
@@ -74,7 +74,7 @@ fi
 
 # --- Bước 3: Secret đã có ít nhất 2 version (sau patch) --------------------
 current_version=$(vault kv metadata get -mount=secret -format=json training/creds 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('current_version','0'))" 2>/dev/null || echo "0")
+  jq -r '.data.current_version // "0"' 2>/dev/null || echo "0")
 if [ "$current_version" -ge 2 ] 2>/dev/null; then
   pass "Secret training/creds có ít nhất 2 version (current_version=$current_version)"
 else
@@ -84,7 +84,7 @@ fi
 # --- Bước 4 + 6: Version 1 bị destroy (không còn dữ liệu) -----------------
 # Sau bước 6, version 1 phải ở trạng thái destroyed
 v1_destroyed=$(vault kv metadata get -mount=secret -format=json training/creds 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); v=d.get('data',{}).get('versions',{}).get('1',{}); print(v.get('destroyed','false'))" 2>/dev/null || echo "false")
+  jq -r '.data.versions["1"].destroyed // "false"' 2>/dev/null || echo "false")
 if [ "$v1_destroyed" = "True" ] || [ "$v1_destroyed" = "true" ]; then
   pass "Version 1 của training/creds đã bị destroy vĩnh viễn"
 else
@@ -109,7 +109,7 @@ fi
 
 # Kiểm tra version mới nhất có field username (dữ liệu hợp lệ sau rollback)
 latest_username=$(vault kv get -mount=secret -format=json training/creds 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('data',{}).get('username',''))" 2>/dev/null || echo "")
+  jq -r '.data.data.username // ""' 2>/dev/null || echo "")
 if [ -n "$latest_username" ]; then
   pass "Version mới nhất sau rollback có field 'username' hợp lệ"
 else
