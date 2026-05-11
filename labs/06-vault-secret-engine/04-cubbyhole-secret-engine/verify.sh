@@ -40,7 +40,7 @@ fi
 
 # Kiểm tra field content có giá trị
 content_val=$(vault read -format=json cubbyhole/lab-note 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('content',''))" 2>/dev/null || echo "")
+  jq -r '.data.content // ""' 2>/dev/null || echo "")
 if [ -n "$content_val" ]; then
   pass "Field 'content' có giá trị trong cubbyhole/lab-note"
 else
@@ -50,7 +50,7 @@ fi
 # --- Bước 2: Xác nhận isolation — tạo token mới và kiểm tra ----------------
 # Kiểm tra gián tiếp: tạo token mới và đảm bảo cubbyhole của nó trống
 NEW_TOKEN=$(vault token create -policy=default -format=json 2>/dev/null | \
-  python3 -c "import sys,json; print(json.load(sys.stdin)['auth']['client_token'])" 2>/dev/null || echo "")
+  jq -r '.auth.client_token' 2>/dev/null || echo "")
 
 if [ -n "$NEW_TOKEN" ]; then
   pass "Tạo token mới với policy default thành công"
@@ -80,7 +80,7 @@ fi
 
 # Kiểm tra field value có giá trị
 db_val=$(vault kv get -mount=secret -format=json lab/db-password 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('data',{}).get('value',''))" 2>/dev/null || echo "")
+  jq -r '.data.data.value // ""' 2>/dev/null || echo "")
 if [ -n "$db_val" ]; then
   pass "Field 'value' có giá trị trong lab/db-password"
 else
@@ -90,7 +90,7 @@ fi
 # --- Bước 3 + 4: Thực hiện Response Wrapping và kiểm tra creation_path -----
 # Tạo wrapping token mới để kiểm tra cơ chế hoạt động
 WRAP_TOKEN=$(vault read -wrap-ttl=30s -format=json secret/data/lab/db-password 2>/dev/null | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('wrap_info',{}).get('token',''))" 2>/dev/null || echo "")
+  jq -r '.wrap_info.token // ""' 2>/dev/null || echo "")
 
 if [ -n "$WRAP_TOKEN" ]; then
   pass "vault read -wrap-ttl thành công — nhận được wrapping token"
@@ -102,7 +102,7 @@ if [ -n "$WRAP_TOKEN" ]; then
     -H "Content-Type: application/json" \
     -d "{\"token\": \"$WRAP_TOKEN\"}" \
     "$VAULT_ADDR/v1/sys/wrapping/lookup" 2>/dev/null | \
-    python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('creation_path',''))" 2>/dev/null || echo "")
+    jq -r '.data.creation_path // ""' 2>/dev/null || echo "")
 
   if [ "$creation_path" = "secret/data/lab/db-password" ]; then
     pass "creation_path khớp với path mong đợi: $creation_path"
@@ -112,7 +112,7 @@ if [ -n "$WRAP_TOKEN" ]; then
 
   # --- Bước 5: Unwrap để lấy secret thật ------------------------------------
   unwrap_val=$(vault unwrap -format=json "$WRAP_TOKEN" 2>/dev/null | \
-    python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('value',''))" 2>/dev/null || echo "")
+    jq -r '.data.data.value // ""' 2>/dev/null || echo "")
 
   if [ -n "$unwrap_val" ]; then
     pass "vault unwrap thành công — lấy được giá trị secret thật"
