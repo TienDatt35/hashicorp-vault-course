@@ -78,7 +78,7 @@ fi
 # --- Kiểm tra 5: Decrypt ciphertext trả về plaintext đúng (Bước 4) --------
 if [ -n "$CIPHER_V1" ]; then
   DECRYPTED_B64=$(vault write -field=plaintext transit/decrypt/lab-key ciphertext="$CIPHER_V1" 2>/dev/null || echo "")
-  DECRYPTED=$(echo "$DECRYPTED_B64" | base64 --decode 2>/dev/null || echo "")
+  DECRYPTED=$(echo "$DECRYPTED_B64" | base64 -d 2>/dev/null || echo "")
   if [ "$DECRYPTED" = "Hello Vault Transit" ]; then
     pass "Decrypt trả về đúng plaintext gốc: 'Hello Vault Transit'"
   else
@@ -144,7 +144,7 @@ fi
 # --- Kiểm tra 10: Ciphertext v2 vẫn decrypt được (Bước 6) -----------------
 if [ -n "$CIPHER_V2" ]; then
   RESULT_B64=$(vault write -field=plaintext transit/decrypt/lab-key ciphertext="$CIPHER_V2" 2>/dev/null || echo "")
-  RESULT=$(echo "$RESULT_B64" | base64 --decode 2>/dev/null || echo "")
+  RESULT=$(echo "$RESULT_B64" | base64 -d 2>/dev/null || echo "")
   if [ "$RESULT" = "Hello Vault Transit" ]; then
     pass "Decrypt ciphertext version ${CIPHER_V2_VER:-2} thành công (không bị chặn bởi min_decryption_version)"
   else
@@ -176,7 +176,7 @@ fi
 # --- Kiểm tra 12: Ciphertext sau rewrap decrypt được đúng nội dung (Bước 7) ---
 if [ -n "$CIPHER_REWRAPPED" ]; then
   REWRAP_RESULT_B64=$(vault write -field=plaintext transit/decrypt/lab-key ciphertext="$CIPHER_REWRAPPED" 2>/dev/null || echo "")
-  REWRAP_RESULT=$(echo "$REWRAP_RESULT_B64" | base64 --decode 2>/dev/null || echo "")
+  REWRAP_RESULT=$(echo "$REWRAP_RESULT_B64" | base64 -d 2>/dev/null || echo "")
   if [ "$REWRAP_RESULT" = "Hello Vault Transit" ]; then
     pass "Ciphertext sau rewrap decrypt đúng plaintext gốc"
   else
