@@ -55,7 +55,7 @@ fi
 
 # --- Kiểm tra 4: Role "db-readonly" có default_ttl là 3600 giây (1h) -------
 default_ttl=$(vault read -format=json database/roles/db-readonly 2>/dev/null \
-  | grep -o '"default_ttl":[0-9]*' | grep -o '[0-9]*' || echo "0")
+  | jq -r '.data.default_ttl // "0"' 2>/dev/null || echo "0")
 if [ "$default_ttl" = "3600" ]; then
   pass "Role 'db-readonly' có default_ttl=3600 giây (1h) đúng như yêu cầu"
 else
