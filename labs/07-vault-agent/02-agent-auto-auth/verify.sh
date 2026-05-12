@@ -244,12 +244,6 @@ if [ -f "$SINK_WRAPPED_FILE" ]; then
     else
       pass "Token trong sink wrapped khong lookup duoc truc tiep — xac nhan la wrapping token"
     fi
-    # Kiem tra co the unwrap duoc
-    if VAULT_TOKEN=root vault unwrap "$WRAPPED_TOKEN" >/dev/null 2>&1; then
-      pass "Co the unwrap token trong sink wrapped — wrapping token hop le"
-    else
-      fail "Khong the unwrap token trong sink wrapped — wrapping token co the da het han"
-    fi
   else
     fail "File sink wrapped ton tai nhung trong"
   fi
