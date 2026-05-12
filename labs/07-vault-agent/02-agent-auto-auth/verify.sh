@@ -228,10 +228,17 @@ fi
 
 # --- Kiem tra 8: Wrapping token khong dung nhu token thuong ---------------
 if [ -f "$SINK_WRAPPED_FILE" ]; then
-  WRAPPED_TOKEN="$(cat "$SINK_WRAPPED_FILE")"
-  if [ -n "$WRAPPED_TOKEN" ]; then
+  WRAPPED_CONTENT="$(cat "$SINK_WRAPPED_FILE")"
+  if [ -n "$WRAPPED_CONTENT" ]; then
+    # Agent ghi JSON response vao wrapped sink (co truong "token", "ttl", v.v.)
+    # Can extract truong "token" truoc khi unwrap
+    WRAPPED_TOKEN=$(echo "$WRAPPED_CONTENT" | jq -r '.token // empty' 2>/dev/null || echo "")
+    if [ -z "$WRAPPED_TOKEN" ]; then
+      # Fallback: thu dung nhu raw token neu khong phai JSON
+      WRAPPED_TOKEN="$WRAPPED_CONTENT"
+    fi
+
     # Wrapping token KHONG the dung voi vault token lookup thong thuong
-    # vault token lookup se tra ve loi, xac nhan day la wrapping token
     if VAULT_TOKEN="$WRAPPED_TOKEN" vault token lookup >/dev/null 2>&1; then
       fail "Token trong sink wrapped tra loi nhu token thuong — co the khong phai wrapping token"
     else

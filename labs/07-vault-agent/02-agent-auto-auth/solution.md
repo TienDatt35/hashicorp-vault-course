@@ -189,12 +189,19 @@ Xác nhận wrapping token:
 # Sink thường — token thật, có thể lookup trực tiếp
 vault token lookup "$(cat ./vault-token-sink)"
 
-# Sink wrapped — wrapping token, KHÔNG thể lookup như token thường
-# Lệnh này sẽ báo lỗi "bad token" hoặc "permission denied"
-# vault token lookup "$(cat ./vault-token-sink-wrapped)"
+# Sink wrapped — Agent ghi JSON response (có trường "token", "ttl", v.v.)
+# Cần extract trường "token" trước, KHÔNG truyền cả JSON vào vault unwrap
+cat ./vault-token-sink-wrapped
+# Output dạng: {"token":"hvs.xxx","accessor":"xxx","ttl":300,...}
 
-# Unwrap để lấy token thật từ wrapping token
-vault unwrap "$(cat ./vault-token-sink-wrapped)"
+# Extract wrapping token từ JSON
+WRAP_TOKEN=$(jq -r '.token' ./vault-token-sink-wrapped)
+
+# Wrapping token KHÔNG thể lookup như token thường — sẽ báo lỗi
+vault token lookup "$WRAP_TOKEN"
+
+# Unwrap để lấy token thật
+vault unwrap "$WRAP_TOKEN"
 ```
 
 Hành vi này xác nhận rằng sink wrapped chứa wrapping token chứ không phải token thật.
