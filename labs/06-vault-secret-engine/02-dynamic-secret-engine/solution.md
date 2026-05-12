@@ -11,7 +11,7 @@ title: Đáp án mẫu — Dynamic Secrets Engine
 
 Bài này thực hành toàn bộ vòng đời của dynamic secrets engine:
 
-- **Bước 0 (Docker):** PostgreSQL chạy trong container cục bộ, đóng vai trò database backend thật.
+- **Bước 0 (PostgreSQL):** Cài và chạy PostgreSQL trực tiếp trong Codespace (Alpine, không có Docker daemon).
 - **Bước 1–2 (enable + config):** Vault lưu thông tin kết nối và xác minh có thể kết nối tới DB.
 - **Bước 3 (role):** Role ánh xạ use case với SQL template. Các placeholder `{{name}}`, `{{password}}`, `{{expiration}}` được Vault thay thế khi sinh credential.
 - **Bước 4 (policy):** Client chỉ cần `read` trên `database/creds/db-readonly`, không cần quyền vào config hay roles.
@@ -21,21 +21,32 @@ Bài này thực hành toàn bộ vòng đời của dynamic secrets engine:
 
 ```bash
 # ========================================
-# Bước 0 — Khởi động PostgreSQL bằng Docker
+# Bước 0 — Cài đặt và khởi động PostgreSQL
 # ========================================
-docker run -d \
-  --name postgres-lab \
-  -e POSTGRES_USER=vault-admin \
-  -e POSTGRES_PASSWORD=admin-password \
-  -e POSTGRES_DB=mydb \
-  -p 5432:5432 \
-  postgres:15-alpine
+# Codespace dùng Alpine — cài trực tiếp, không qua Docker
+apk add --no-cache postgresql postgresql-client
 
-# Chờ PostgreSQL sẵn sàng nhận kết nối
-until docker exec postgres-lab pg_isready -U vault-admin 2>/dev/null; do
-  sleep 1
-done
+# Khởi tạo data directory với postgres là OS user
+mkdir -p /tmp/pgdata
+chown postgres /tmp/pgdata
+su postgres -c "initdb -D /tmp/pgdata -U postgres --auth=trust"
+
+# Thêm rule TCP với password (Vault kết nối qua 127.0.0.1, không qua unix socket)
+echo "host all all 127.0.0.1/32 md5" >> /tmp/pgdata/pg_hba.conf
+
+# Khởi động PostgreSQL
+su postgres -c "pg_ctl -D /tmp/pgdata -l /tmp/pg.log start"
+
+# Chờ sẵn sàng
+until pg_isready -h 127.0.0.1 -p 5432 2>/dev/null; do sleep 1; done
 echo "PostgreSQL sẵn sàng."
+
+# Tạo role vault-admin (superuser) và database mydb
+cat > /tmp/setup.sql << 'SQL'
+CREATE ROLE "vault-admin" WITH SUPERUSER LOGIN PASSWORD 'admin-password';
+CREATE DATABASE mydb OWNER "vault-admin";
+SQL
+su postgres -c "psql -f /tmp/setup.sql"
 
 # ========================================
 # Bước 1 — Enable database secrets engine
@@ -101,7 +112,7 @@ vault read database/creds/db-readonly
 
 ## Giải thích từng bước
 
-**Bước 0:** `docker run` tạo container PostgreSQL với `vault-admin` là superuser — đủ quyền để chạy `CREATE ROLE` khi Vault sinh credential. Flag `-p 5432:5432` expose port để Vault kết nối qua `localhost:5432`.
+**Bước 0:** `apk add postgresql` cài PostgreSQL trong container Alpine. `initdb` phải chạy với OS user `postgres` (PostgreSQL không cho phép init/start với root). Ta tạo `vault-admin` là superuser PostgreSQL riêng biệt với password — đây là tài khoản Vault dùng để kết nối và chạy `CREATE ROLE`. Rule `host ... md5` trong `pg_hba.conf` bắt buộc có vì Vault kết nối qua TCP (127.0.0.1:5432), không qua unix socket.
 
 **Bước 2:** Trường `connection_url` dùng placeholder `{{username}}` và `{{password}}` — Vault thay bằng giá trị thực từ `username`/`password` khi kiểm tra kết nối. Lần này bỏ `verify_connection=false` để Vault thật sự kết nối và xác minh ngay.
 

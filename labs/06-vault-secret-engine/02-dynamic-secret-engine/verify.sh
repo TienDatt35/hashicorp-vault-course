@@ -27,16 +27,11 @@ else
   exit 1
 fi
 
-# --- Kiểm tra 1: PostgreSQL container đang chạy (Bước 0) --------------------
-if docker exec postgres-lab pg_isready -U vault-admin >/dev/null 2>&1; then
-  pass "PostgreSQL đang chạy trong container 'postgres-lab'"
+# --- Kiểm tra 1: PostgreSQL đang chạy tại localhost:5432 (Bước 0) -----------
+if pg_isready -h 127.0.0.1 -p 5432 >/dev/null 2>&1; then
+  pass "PostgreSQL đang chạy tại localhost:5432"
 else
-  fail "PostgreSQL chưa chạy — hãy khởi động bằng lệnh:"
-  printf '       docker run -d --name postgres-lab \\\n'
-  printf '         -e POSTGRES_USER=vault-admin \\\n'
-  printf '         -e POSTGRES_PASSWORD=admin-password \\\n'
-  printf '         -e POSTGRES_DB=mydb \\\n'
-  printf '         -p 5432:5432 postgres:15-alpine\n'
+  fail "PostgreSQL chưa chạy — hãy chạy Bước 0 trong solution.md (apk add postgresql ...)"
 fi
 
 # --- Kiểm tra 2: Database engine tồn tại tại path "database/" ---------------

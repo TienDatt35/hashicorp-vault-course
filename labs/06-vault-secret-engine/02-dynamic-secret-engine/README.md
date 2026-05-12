@@ -13,18 +13,16 @@ Bạn sẽ thực hành toàn bộ vòng đời của dynamic secrets engine: kh
 
 - Bạn đang làm việc bên trong Codespace của repo này, nên Vault dev server đã
   được khởi động sẵn ở `http://127.0.0.1:8200` với root token là `root`.
-- Docker đã có sẵn trong Codespace (kiểm tra bằng `docker info`).
+- Codespace chạy trên Alpine Linux — `apk` có sẵn để cài package.
 - Bạn đã đọc bài lý thuyết tương ứng trong `site/docs/06-vault-secret-engine/02-dynamic-secret-engine/`.
 
 ## Nhiệm vụ của bạn
 
-**Bước 0:** Khởi động PostgreSQL bằng Docker với các thông số sau:
-- Image: `postgres:15-alpine`
-- Tên container: `postgres-lab`
-- User: `vault-admin`, Password: `admin-password`, Database: `mydb`
-- Port: `5432:5432`
-
-Sau khi container chạy, chờ đến khi PostgreSQL sẵn sàng nhận kết nối (dùng `docker exec ... pg_isready`).
+**Bước 0:** Cài đặt và khởi động PostgreSQL trực tiếp trong Codespace (môi trường Alpine, không có Docker daemon):
+- Cài gói: `apk add --no-cache postgresql postgresql-client`
+- Khởi tạo data directory tại `/tmp/pgdata` với user OS `postgres`
+- Tạo role `vault-admin` (superuser) và database `mydb`
+- Chờ đến khi `pg_isready` báo sẵn sàng
 
 **Bước 1:** Bật database secrets engine tại path mặc định `database/`.
 
