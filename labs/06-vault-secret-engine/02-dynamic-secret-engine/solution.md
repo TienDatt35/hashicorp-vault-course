@@ -35,18 +35,20 @@ su postgres -c "initdb -D /tmp/pgdata -U postgres --auth=trust"
 echo "host all all 127.0.0.1/32 md5" >> /tmp/pgdata/pg_hba.conf
 
 # Khởi động PostgreSQL
-su postgres -c "pg_ctl -D /tmp/pgdata -l /tmp/pg.log start"
+# Phải dùng -k /tmp vì /run/postgresql/ không tồn tại trong devcontainer
+su postgres -c "pg_ctl -D /tmp/pgdata -o '-k /tmp' -l /tmp/pg.log start"
 
 # Chờ sẵn sàng
 until pg_isready -h 127.0.0.1 -p 5432 2>/dev/null; do sleep 1; done
 echo "PostgreSQL sẵn sàng."
 
 # Tạo role vault-admin (superuser) và database mydb
+# Kết nối qua unix socket trong /tmp (psql mặc định tìm /run/postgresql/)
 cat > /tmp/setup.sql << 'SQL'
 CREATE ROLE "vault-admin" WITH SUPERUSER LOGIN PASSWORD 'admin-password';
 CREATE DATABASE mydb OWNER "vault-admin";
 SQL
-su postgres -c "psql -f /tmp/setup.sql"
+su postgres -c "psql -h /tmp -f /tmp/setup.sql"
 
 # ========================================
 # Bước 1 — Enable database secrets engine
