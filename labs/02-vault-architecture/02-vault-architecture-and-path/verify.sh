@@ -5,7 +5,7 @@
 # Script đọc init output từ /tmp/vault-lab/init-output.json để tự unseal
 # nếu cần, nhưng học viên phải đã thực hiện init trước.
 #
-# Chạy bằng: bash verify.sh
+# Chạy bằng: sh verify.sh
 # Exit code 0 chỉ khi mọi kiểm tra đều đạt.
 
 set -uo pipefail

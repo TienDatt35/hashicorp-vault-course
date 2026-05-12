@@ -67,7 +67,7 @@ tự làm trước, chỉ mở đáp án khi thực sự cần.
 ### Bước 5 — Chạy kiểm tra để xác nhận kết quả
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Mỗi kiểm tra sẽ in ra `[PASS]` hoặc `[FAIL]`. Bài hoàn thành khi tất cả

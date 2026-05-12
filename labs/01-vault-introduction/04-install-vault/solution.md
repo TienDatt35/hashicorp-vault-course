@@ -4,7 +4,7 @@ title: "Đáp án — Cài Vault từ binary, cấu hình, khởi tạo và unse
 
 # Đáp án mẫu
 
-> Đây là một cách giải chuẩn cho bài thực hành. Miễn là `bash verify.sh` báo
+> Đây là một cách giải chuẩn cho bài thực hành. Miễn là `sh verify.sh` báo
 > `[PASS]` cho mọi kiểm tra là đúng.
 
 ## Giải thích ngắn

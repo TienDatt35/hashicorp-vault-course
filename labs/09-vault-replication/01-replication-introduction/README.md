@@ -97,7 +97,7 @@ tế (ví dụ: trong script tự động hóa), format nào hữu ích hơn?
 Chạy bộ kiểm tra:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

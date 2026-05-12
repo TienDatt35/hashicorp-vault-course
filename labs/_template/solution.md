@@ -5,7 +5,7 @@ title: TEMPLATE — đáp án mẫu
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng
-> đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> đúng — miễn là `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -28,7 +28,7 @@ vault ...
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

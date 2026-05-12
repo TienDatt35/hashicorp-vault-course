@@ -6,7 +6,7 @@
 #   fail "mô tả ngắn"   -> in dòng [FAIL] và tăng số lỗi
 #
 # Kiểm tra instance Vault riêng ở port 8300 (không phải dev server 8200).
-# Chạy bằng: bash verify.sh
+# Chạy bằng: sh verify.sh
 
 set -u pipefail
 

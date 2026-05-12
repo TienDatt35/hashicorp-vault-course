@@ -155,7 +155,7 @@ Xác nhận `Sealed: false` một lần nữa.
 ## Tiêu chí thành công
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

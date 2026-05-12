@@ -5,7 +5,7 @@ title: Userpass Auth Method — Đáp án mẫu
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng
-> đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> đúng — miễn là `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -160,7 +160,7 @@ token mà không bao giờ thấy giá trị token thực.
 Chạy verify **trước bước 12** (khi userpass còn đang bật và alice còn tồn tại):
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

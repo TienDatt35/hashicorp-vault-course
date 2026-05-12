@@ -5,7 +5,7 @@ title: Đáp án mẫu — Thực hành Token Metadata
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng
-> đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> đúng — miễn là `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -120,13 +120,13 @@ vault token lookup "$ORPHAN_TOKEN"
 Nếu bạn đã chạy xong các lệnh trên trong cùng một terminal session, các biến `LAB_ACCESSOR`, `MAX_TTL_ACCESSOR`, `ORPHAN_ACCESSOR` đã được export. Nếu không, hãy chạy lại phần lưu accessor rồi mới verify:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

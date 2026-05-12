@@ -5,7 +5,7 @@ title: Đáp án mẫu — Khám phá Vault qua CLI, UI và HTTP API
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng
-> đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> đúng — miễn là `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -76,7 +76,7 @@ curl -s -H "X-Vault-Token: root" $VAULT_ADDR/v1/kv/data/app/db | jq .data.data
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

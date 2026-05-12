@@ -5,7 +5,7 @@ title: Đáp án mẫu — Khám phá trạng thái Replication trên Vault OSS
 # Đáp án mẫu
 
 > Đây là lời giải chuẩn cho bài thực hành. Vì bài này dùng Vault OSS dev
-> server, kết quả của bạn sẽ giống hệt — `bash verify.sh` báo `[PASS]` cho
+> server, kết quả của bạn sẽ giống hệt — `sh verify.sh` báo `[PASS]` cho
 > mọi kiểm tra là thành công.
 
 ## Bước 1: Kiểm tra trạng thái replication tổng quát
@@ -168,7 +168,7 @@ cung cấp môi trường sandbox để thực hành miễn phí.
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

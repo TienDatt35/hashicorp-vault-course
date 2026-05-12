@@ -128,7 +128,7 @@ VAULT_ADDR=http://127.0.0.1:8300 vault secrets list
 ## Tiêu chí thành công
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

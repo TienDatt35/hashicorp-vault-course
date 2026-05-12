@@ -62,7 +62,7 @@ Trường `mode` có giá trị `"disabled"` vì Vault OSS không hỗ trợ rep
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

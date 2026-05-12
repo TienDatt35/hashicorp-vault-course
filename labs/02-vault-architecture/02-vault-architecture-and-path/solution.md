@@ -5,7 +5,7 @@ title: Đáp án mẫu — Vault Init và Unseal bằng Key Shards
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn. Có thể có nhiều cách khác — miễn là
-> `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -95,7 +95,7 @@ vault status
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

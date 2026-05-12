@@ -65,7 +65,7 @@ Thu hồi `$LAB_TOKEN` bằng `vault token revoke`. Sau đó thử lookup token 
 Chạy bộ kiểm tra:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

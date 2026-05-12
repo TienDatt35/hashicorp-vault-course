@@ -4,7 +4,7 @@
 # Script tự tạo token test để kiểm tra từng khái niệm.
 # Không cần biến môi trường ngoài VAULT_ADDR và VAULT_TOKEN.
 #
-# Chạy: bash verify.sh
+# Chạy: sh verify.sh
 
 set -uo pipefail
 

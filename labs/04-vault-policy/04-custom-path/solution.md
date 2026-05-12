@@ -4,7 +4,7 @@ title: Đáp án mẫu — Wildcard và ACL Templating trong Vault Policy
 
 # Đáp án mẫu
 
-> Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng đúng — miễn là `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -95,7 +95,7 @@ ENTITY_ID=$(vault read -field=id identity/entity/name/alice-entity)
 echo "Entity ID: $ENTITY_ID"
 
 # 4.4: Lấy mount accessor của userpass và tạo alias
-USERPASS_ACCESSOR=$(vault auth list -format=json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['userpass/']['accessor'])")
+USERPASS_ACCESSOR=$(vault auth list -format=json | jq -r '.["userpass/"].accessor')
 
 vault write identity/entity-alias \
   name="alice" \
@@ -136,17 +136,12 @@ VAULT_TOKEN=$ALICE_TOKEN vault kv get secret/$ENTITY_ID/config
   export VAULT_TOKEN=$ROOT_TOKEN  # khôi phục root token
   ```
 
-- `python3` được dùng để parse JSON accessor. Nếu không có `python3`, bạn có thể dùng `jq`:
-  ```bash
-  USERPASS_ACCESSOR=$(vault auth list -format=json | jq -r '.["userpass/"].accessor')
-  ```
-
 - Sau khi gán policy vào entity, token của alice nhận policy qua entity — không cần gán policy trực tiếp vào token.
 
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

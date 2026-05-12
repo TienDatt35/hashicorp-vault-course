@@ -74,7 +74,7 @@ Ghi lại `id` (entity_id) từ output.
 Chạy bộ kiểm tra:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

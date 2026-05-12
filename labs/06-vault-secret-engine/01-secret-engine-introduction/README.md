@@ -36,7 +36,7 @@ Bạn sẽ thực hành toàn bộ vòng đời cơ bản của một secrets en
 Chạy bộ kiểm tra sau khi hoàn thành **Bước 1 đến Bước 4** (trước khi thực hiện Bước 5):
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

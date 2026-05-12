@@ -81,7 +81,7 @@ Chờ khoảng 15 giây (vì interval là 10 giây), rồi kiểm tra lại file
 Chạy bộ kiểm tra:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

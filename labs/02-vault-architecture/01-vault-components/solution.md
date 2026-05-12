@@ -5,7 +5,7 @@ title: Đáp án mẫu — Khám phá kiến trúc Vault, thành phần và path
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn. Có thể có nhiều cách khác — miễn là
-> `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -72,7 +72,7 @@ vault secrets enable -path=identity kv
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

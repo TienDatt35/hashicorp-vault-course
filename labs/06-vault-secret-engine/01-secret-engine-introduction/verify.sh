@@ -4,7 +4,7 @@
 # Script tự thực hiện toàn bộ các bước của bài lab trong môi trường tạm thời,
 # kiểm tra kết quả, rồi dọn dẹp. Học viên có thể chạy lại nhiều lần.
 #
-# Chạy bằng: bash verify.sh
+# Chạy bằng: sh verify.sh
 
 set -uo pipefail
 

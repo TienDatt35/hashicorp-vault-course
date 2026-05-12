@@ -64,7 +64,7 @@ Ghi nhận ít nhất 3 điểm khác biệt giữa hai file cấu hình.
 Chạy bộ kiểm tra sau khi hoàn thành cả 4 bước:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

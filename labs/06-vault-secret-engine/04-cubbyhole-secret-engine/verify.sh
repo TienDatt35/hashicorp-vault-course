@@ -5,7 +5,7 @@
 #   pass "mô tả ngắn"   -> in dòng [PASS]
 #   fail "mô tả ngắn"   -> in dòng [FAIL] và tăng số lỗi
 #
-# Chạy bằng: bash verify.sh
+# Chạy bằng: sh verify.sh
 
 set -uo pipefail
 

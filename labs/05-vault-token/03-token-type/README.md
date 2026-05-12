@@ -103,7 +103,7 @@ export APPROLE_ACCESSOR=<accessor của token AppRole bước 5>
 Sau đó chạy bộ kiểm tra:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

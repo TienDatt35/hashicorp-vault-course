@@ -121,7 +121,7 @@ kubectl get secret dynamic-db-creds -n app
 Sau khi apply, xác minh Secret TLS đã được tạo và có đủ hai key:
 
 ```bash
-kubectl get secret pki-tls-secret -n app -o jsonpath='{.data}' | python3 -c "import sys,json; d=json.load(sys.stdin); print(list(d.keys()))"
+kubectl get secret pki-tls-secret -n app -o jsonpath='{.data}' | jq 'keys'
 ```
 
 Bạn phải thấy `tls.crt` và `tls.key` trong kết quả.
@@ -134,7 +134,7 @@ Bạn phải thấy `tls.crt` và `tls.key` trong kết quả.
 Chạy bộ kiểm tra:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

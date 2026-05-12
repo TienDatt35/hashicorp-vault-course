@@ -5,7 +5,7 @@ title: Đáp án mẫu — Secret Transformation
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng
-> đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> đúng — miễn là `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -79,7 +79,7 @@ EOF
 
 ```bash
 # Xem danh sách key trong K8s Secret (chỉ xem tên key, không giải mã giá trị)
-kubectl get secret webapp-transformed -n app -o jsonpath='{.data}' | python3 -m json.tool
+kubectl get secret webapp-transformed -n app -o jsonpath='{.data}' | jq '.'
 
 # Hoặc xem toàn bộ YAML (giá trị ở dạng base64)
 kubectl get secret webapp-transformed -n app -o yaml
@@ -153,7 +153,7 @@ Lý do cần giữ lease sau restart: Dynamic secrets (database credential, clou
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

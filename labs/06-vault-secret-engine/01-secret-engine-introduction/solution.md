@@ -5,7 +5,7 @@ title: Đáp án mẫu — Vòng đời Secrets Engine
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng
-> đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> đúng — miễn là `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -35,7 +35,7 @@ vault kv get demo-secrets/config
 vault secrets tune -default-lease-ttl=2h demo-secrets/
 
 # Chạy verify.sh để kiểm tra Bước 1-4
-bash verify.sh
+sh verify.sh
 
 # Bước 5 — Tắt engine (xóa vĩnh viễn toàn bộ dữ liệu + revoke secrets)
 vault secrets disable demo-secrets/
@@ -57,7 +57,7 @@ vault kv get demo-secrets/config
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

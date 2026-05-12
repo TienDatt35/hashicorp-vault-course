@@ -43,7 +43,7 @@ Tạo một token với `use-limit=3` và TTL 1 giờ. Dùng token đó 3 lần 
 Chạy bộ kiểm tra:
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy `[PASS]` cho từng kiểm tra và dòng cuối `Tất cả kiểm tra đều đạt.`

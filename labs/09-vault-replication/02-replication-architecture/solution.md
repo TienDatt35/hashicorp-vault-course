@@ -4,7 +4,7 @@ title: Đáp án mẫu — Phân tích kiến trúc Vault Replication đa vùng
 
 # Đáp án mẫu
 
-> Đây là lời giải chuẩn cho bài thực hành. Các bước phân tích kiến trúc (Bước 1-3) là bài tập tư duy — câu trả lời có thể diễn đạt khác nhau, miễn là đúng về mặt kỹ thuật. Bước 4 có thể chạy lệnh và kiểm tra bằng `bash verify.sh`.
+> Đây là lời giải chuẩn cho bài thực hành. Các bước phân tích kiến trúc (Bước 1-3) là bài tập tư duy — câu trả lời có thể diễn đạt khác nhau, miễn là đúng về mặt kỹ thuật. Bước 4 có thể chạy lệnh và kiểm tra bằng `sh verify.sh`.
 
 ## Bước 1: Thiết kế topology
 
@@ -149,7 +149,7 @@ Các giá trị có thể có:
 ### Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.

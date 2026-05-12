@@ -5,7 +5,7 @@ title: Đáp án mẫu — Cài đặt VSO và khai báo VaultConnection + Vault
 # Đáp án mẫu
 
 > Đây là một cách giải chuẩn cho bài thực hành. Có thể có nhiều cách khác cũng
-> đúng — miễn là `bash verify.sh` báo `[PASS]` cho mọi kiểm tra.
+> đúng — miễn là `sh verify.sh` báo `[PASS]` cho mọi kiểm tra.
 
 ## Giải thích ngắn
 
@@ -180,7 +180,7 @@ VSO tìm ServiceAccount trong cùng namespace với VaultAuth để lấy JWT to
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.
