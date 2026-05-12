@@ -40,9 +40,8 @@ vault read transit/keys/lab-key
 # Bước 3 — Encrypt dữ liệu
 # ========================================
 # Quan trọng: plaintext PHẢI là base64 trước khi gửi lên Vault
-# Trên Linux, "base64 <<< text" thêm newline vào cuối
-# Vault chấp nhận điều này bình thường
-PLAINTEXT_B64=$(base64 <<< "Hello Vault Transit")
+# Dùng printf thay vì heredoc (<<< không chạy trên ash/BusyBox)
+PLAINTEXT_B64=$(printf '%s' "Hello Vault Transit" | base64)
 
 vault write transit/encrypt/lab-key plaintext="$PLAINTEXT_B64"
 # Output có dạng:
@@ -60,7 +59,7 @@ echo "Ciphertext v1: $CIPHER_V1"
 RESULT_B64=$(vault write -field=plaintext transit/decrypt/lab-key ciphertext="$CIPHER_V1")
 
 # Decode base64 để lấy lại chuỗi gốc
-echo "$RESULT_B64" | base64 --decode
+echo "$RESULT_B64" | base64 -d
 # Kết quả: Hello Vault Transit
 
 # ========================================
@@ -88,7 +87,7 @@ vault write transit/decrypt/lab-key ciphertext="$CIPHER_V1"
 # Lỗi: requested version for decryption is less than the minimum allowed version
 
 # Decrypt ciphertext v2 — vẫn thành công
-vault write -field=plaintext transit/decrypt/lab-key ciphertext="$CIPHER_V2" | base64 --decode
+vault write -field=plaintext transit/decrypt/lab-key ciphertext="$CIPHER_V2" | base64 -d
 # Kết quả: Hello Vault Transit
 
 # ========================================
@@ -108,7 +107,7 @@ echo "Ciphertext sau rewrap: $CIPHER_REWRAPPED"
 # Prefix phải là vault:v2:... (version mới nhất)
 
 # Kiểm tra kết quả: decrypt ciphertext đã rewrap
-vault write -field=plaintext transit/decrypt/lab-key ciphertext="$CIPHER_REWRAPPED" | base64 --decode
+vault write -field=plaintext transit/decrypt/lab-key ciphertext="$CIPHER_REWRAPPED" | base64 -d
 # Kết quả: Hello Vault Transit
 
 # Đặt lại min_decryption_version=2 sau khi rewrap xong
@@ -119,22 +118,17 @@ vault write transit/keys/lab-key/config min_decryption_version=2
 
 ## Lưu ý kỹ thuật quan trọng
 
-### base64 trên Linux vs macOS
+### base64 trong Codespace (BusyBox/ash)
 
 ```bash
-# Linux (GNU coreutils): base64 <<< "text" thêm newline vào chuỗi
-# Vault chấp nhận chuỗi base64 có newline trailing
-base64 <<< "Hello Vault Transit"
-# → SGVsbG8gVmF1bHQgVHJhbnNpdAo=  (có \n ở cuối)
-
-# Nếu muốn base64 không có newline (phòng trường hợp so sánh chính xác):
+# Codespace dùng BusyBox base64 — KHÔNG hỗ trợ <<< (herestring) hay --decode
+# Luôn dùng printf + pipe để encode:
 printf '%s' "Hello Vault Transit" | base64
 # → SGVsbG8gVmF1bHQgVHJhbnNpdA==  (không có \n)
 
-# Decode:
-echo "SGVsbG8gVmF1bHQgVHJhbnNpdA==" | base64 --decode
-# hoặc
-base64 --decode <<< "SGVsbG8gVmF1bHQgVHJhbnNpdA=="
+# Decode dùng flag -d (không phải --decode):
+echo "SGVsbG8gVmF1bHQgVHJhbnNpdA==" | base64 -d
+# → Hello Vault Transit
 ```
 
 ### Đọc key_version từ output
@@ -168,7 +162,7 @@ Trong bài lab, để kiểm tra được cả hai trạng thái (v1 thất bạ
 ## Kiểm tra lại
 
 ```bash
-bash verify.sh
+sh verify.sh
 ```
 
 Bạn phải thấy toàn bộ dòng `[PASS]`.
