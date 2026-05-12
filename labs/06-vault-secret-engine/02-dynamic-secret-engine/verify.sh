@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 # verify.sh — kiểm tra bài thực hành: Dynamic Secrets Engine
 #
-# Script kiểm tra:
-#   0. Vault có thể truy cập
-#   1. Database engine được enable tại path "database/"
-#   2. Config "mydb" tồn tại trong database/config/
-#   3. Role "db-readonly" tồn tại và có default_ttl đúng
-#   4. Policy "db-client" tồn tại trong Vault
+# Chạy bằng: sh verify.sh
 
 set -uo pipefail
 
@@ -32,49 +27,74 @@ else
   exit 1
 fi
 
-# --- Kiểm tra 1: Database engine tồn tại tại path "database/" ---------------
+# --- Kiểm tra 1: PostgreSQL container đang chạy (Bước 0) --------------------
+if docker exec postgres-lab pg_isready -U vault-admin >/dev/null 2>&1; then
+  pass "PostgreSQL đang chạy trong container 'postgres-lab'"
+else
+  fail "PostgreSQL chưa chạy — hãy khởi động bằng lệnh:"
+  printf '       docker run -d --name postgres-lab \\\n'
+  printf '         -e POSTGRES_USER=vault-admin \\\n'
+  printf '         -e POSTGRES_PASSWORD=admin-password \\\n'
+  printf '         -e POSTGRES_DB=mydb \\\n'
+  printf '         -p 5432:5432 postgres:15-alpine\n'
+fi
+
+# --- Kiểm tra 2: Database engine tồn tại tại path "database/" ---------------
 if vault secrets list -format=json 2>/dev/null | grep -q '"database/"'; then
   pass "Database secrets engine đã được enable tại path 'database/'"
 else
   fail "Không tìm thấy 'database/' — hãy chạy: vault secrets enable database"
 fi
 
-# --- Kiểm tra 2: Config "mydb" tồn tại trong database/config/ ---------------
+# --- Kiểm tra 3: Config "mydb" tồn tại trong database/config/ ---------------
 if vault list database/config 2>/dev/null | grep -q 'mydb'; then
   pass "Config 'mydb' tồn tại trong database/config/"
 else
-  fail "Không tìm thấy config 'mydb' — hãy chạy: vault write database/config/mydb plugin_name=postgresql-database-plugin ..."
+  fail "Không tìm thấy config 'mydb' — hãy chạy: vault write database/config/mydb ..."
 fi
 
-# --- Kiểm tra 3: Role "db-readonly" tồn tại trong database/roles/ -----------
+# --- Kiểm tra 4: Role "db-readonly" tồn tại trong database/roles/ -----------
 if vault list database/roles 2>/dev/null | grep -q 'db-readonly'; then
   pass "Role 'db-readonly' tồn tại trong database/roles/"
 else
-  fail "Không tìm thấy role 'db-readonly' — hãy chạy: vault write database/roles/db-readonly db_name=mydb ..."
+  fail "Không tìm thấy role 'db-readonly' — hãy chạy: vault write database/roles/db-readonly ..."
 fi
 
-# --- Kiểm tra 4: Role "db-readonly" có default_ttl là 3600 giây (1h) -------
+# --- Kiểm tra 5: Role "db-readonly" có default_ttl là 3600 giây (1h) -------
 default_ttl=$(vault read -format=json database/roles/db-readonly 2>/dev/null \
   | jq -r '.data.default_ttl // "0"' 2>/dev/null || echo "0")
 if [ "$default_ttl" = "3600" ]; then
-  pass "Role 'db-readonly' có default_ttl=3600 giây (1h) đúng như yêu cầu"
+  pass "Role 'db-readonly' có default_ttl=3600 giây (1h)"
 else
-  fail "default_ttl của role 'db-readonly' không đúng (nhận được: ${default_ttl}s, cần: 3600s) — hãy kiểm tra lại tham số default_ttl=1h"
+  fail "default_ttl không đúng (nhận được: ${default_ttl}s, cần: 3600s)"
 fi
 
-# --- Kiểm tra 5: Policy "db-client" tồn tại trong Vault --------------------
+# --- Kiểm tra 6: Policy "db-client" tồn tại và đúng nội dung ---------------
 if vault policy list 2>/dev/null | grep -q 'db-client'; then
   pass "Policy 'db-client' tồn tại trong Vault"
 else
-  fail "Không tìm thấy policy 'db-client' — hãy chạy: vault policy write db-client /tmp/db-client-policy.hcl"
+  fail "Không tìm thấy policy 'db-client' — hãy chạy: vault policy write db-client ..."
 fi
 
-# --- Kiểm tra 6: Policy "db-client" chứa path database/creds/db-readonly ----
 policy_content=$(vault policy read db-client 2>/dev/null || echo "")
 if echo "$policy_content" | grep -q 'database/creds/db-readonly'; then
-  pass "Policy 'db-client' chứa path 'database/creds/db-readonly' đúng như yêu cầu"
+  pass "Policy 'db-client' chứa path 'database/creds/db-readonly'"
 else
-  fail "Policy 'db-client' không chứa path 'database/creds/db-readonly' — hãy kiểm tra lại nội dung policy"
+  fail "Policy 'db-client' không chứa path 'database/creds/db-readonly'"
+fi
+
+# --- Kiểm tra 7: Vault tạo được credential thật từ PostgreSQL (Bước 6) -----
+CREDS=$(vault read -format=json database/creds/db-readonly 2>/dev/null || echo "")
+DB_USER=$(echo "$CREDS" | jq -r '.data.username // ""' 2>/dev/null || echo "")
+DB_PASS=$(echo "$CREDS" | jq -r '.data.password // ""' 2>/dev/null || echo "")
+LEASE_ID=$(echo "$CREDS" | jq -r '.lease_id // ""' 2>/dev/null || echo "")
+
+if [ -n "$DB_USER" ] && [ -n "$DB_PASS" ]; then
+  pass "Vault tạo credential thật thành công (username: $DB_USER)"
+  # Revoke ngay để giữ môi trường sạch
+  [ -n "$LEASE_ID" ] && vault lease revoke "$LEASE_ID" >/dev/null 2>&1 || true
+else
+  fail "Không tạo được credential — kiểm tra kết nối PostgreSQL và cấu hình Vault"
 fi
 
 echo
